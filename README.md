@@ -5,7 +5,7 @@
 
 ---
 
-## 🧭 What Is This?
+##  What Is This?
 
 When you use Google Maps, it finds the fastest or shortest route. But it has no idea whether that road has deep potholes, broken surfaces, or high speed breakers that could damage the underside of your car.
 
@@ -15,7 +15,7 @@ By analysing road surface conditions using street-level images and estimating ob
 
 ---
 
-## 🖼️ System Architecture
+##  System Architecture
 
 ![System Architecture](docs/architecture-ground.png)
 
@@ -46,7 +46,7 @@ Road images go through a pipeline:
 
 ---
 
-## 🚘 Who Is This For?
+##  Who Is This For?
 
 - Drivers of low ground-clearance vehicles (sedans, hatchbacks, sports cars)
 - Anyone travelling on roads with poor surface conditions
@@ -54,7 +54,7 @@ Road images go through a pipeline:
 
 ---
 
-## ⚙️ How It Works — In Simple Terms
+##  How It Works — In Simple Terms
 
 1. You enter your **start point**, **end point**, and **vehicle type**.
 2. The system fetches road images along your route from Google Street View.
@@ -88,7 +88,7 @@ All project documents are in the `docs/` folder:
 
 ---
 
-## ⚠️ Known Limitations
+##  Known Limitations
 
 - Road images come from Google Street View, which may not always be up to date.
 - Depth estimation gives a **relative** measure, not exact millimetre values. Risk is calculated using a normalised depth index.
@@ -96,7 +96,7 @@ All project documents are in the `docs/` folder:
 
 ---
 
-## 🔮 Future Scope
+##  Future Scope
 
 - Real-time road condition updates using crowdsourced dashcam data
 - Mobile app (Android & iOS)
