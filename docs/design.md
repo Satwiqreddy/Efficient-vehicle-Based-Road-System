@@ -265,15 +265,15 @@ Edge weight = segment_distance_metres + α × risk_score × 1000
 
 ## 5. Technology Stack Summary
 
-| Layer | Technology | Justification |
-|---|---|---|
-| Routing data | Google Maps Directions API | Industry-standard, well-documented |
-| Road imagery | Google Street View Static API | Freely accessible per-coordinate images |
-| Object detection | YOLOv8 (Ultralytics) | Fast inference, pre-trained weights available |
-| Depth estimation | MiDaS v2.1 small | Monocular depth, lightweight, runs on CPU |
-| Graph & routing | NetworkX + custom A* | Full control over cost function |
-| Backend | Python 3.10, Flask | Team familiarity, rapid development |
-| Visualisation | Folium | Native integration with lat/lng data |
+| Layer | Technology | 
+|---|---|
+| Routing data | Google Maps Directions API | 
+| Road imagery | Google Street View Static API | 
+| Object detection | YOLOv8 (Ultralytics) |
+| Depth estimation | MiDaS v2.1 small | 
+| Graph & routing | NetworkX + custom A* | 
+| Backend | Python 3.10, Flask | 
+| Visualisation | Folium | 
 
 ---
 
