@@ -288,17 +288,3 @@ Edge weight = segment_distance_metres + α × risk_score × 1000
 
 ---
 
-## 7. Commit Checklist (Design Proof for Guide Review)
-
-The following commits must exist in the repository to satisfy the **Design Proof** rubric criterion:
-
-- [ ] `docs/DESIGN.md` — this file
-- [ ] `docs/requirements.md` — requirements specification
-- [ ] `modules/route_extraction/` — skeleton with function stubs
-- [ ] `modules/image_collection/` — skeleton with function stubs
-- [ ] `modules/road_analysis/` — skeleton with function stubs
-- [ ] `modules/risk_scoring/` — skeleton with function stubs
-- [ ] `modules/routing_engine/` — skeleton with function stubs
-- [ ] `modules/frontend/` — skeleton with Flask app stub
-- [ ] `config.py` — global constants (SEGMENT_LENGTH_M, ALPHA, clearance profiles)
-- [ ] `README.md` — project overview with setup instructions
