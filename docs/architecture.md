@@ -261,26 +261,6 @@ RISK_TABLE = {
 
 ---
 
-## 6. Execution Flow (End to End)
-
-```
-python main.py \
-  --source "Anna Nagar, Chennai" \
-  --destination "T Nagar, Chennai" \
-  --vehicle sedan
-
-Step 1: route_extraction   → writes segments.json        (~2s)
-Step 2: image_collection   → writes images/ + manifest   (~30–90s depending on segment count)
-Step 3: road_analysis      → writes detections.json      (~20–60s)
-Step 4: risk_scoring       → writes risk_map.json        (<1s)
-Step 5: routing_engine     → writes safe_route.json      (<1s)
-Step 6: frontend           → opens map in browser        (<2s)
-```
-
-Total estimated time for a 5 km route (~100 segments): **60–180 seconds**  
-Bottleneck: Street View API calls (rate-limited). Mitigated by caching images locally.
-
----
 
 ## 7. Caching Strategy
 
