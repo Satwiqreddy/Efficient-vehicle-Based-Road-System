@@ -18,9 +18,7 @@ Existing navigation systems (e.g., Google Maps) optimize routes for distance or 
 | Stakeholder | Role |
 |---|---|
 | End User | Driver of a low ground-clearance vehicle |
-| Vehicle Owner | Provides vehicle specs (ground clearance) |
-| Developer Team | Builds and maintains the system |
-| Guide / Evaluator | Assesses technical soundness and design |
+| Vehicle Owner | Provides vehicle specifications |
 
 ---
 
