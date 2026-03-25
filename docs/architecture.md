@@ -256,8 +256,7 @@ RISK_TABLE = {
 | Street View returns no imagery | image_collection | Save placeholder, set `fallback=True` in manifest |
 | YOLO detects nothing | road_analysis | Set `obstacle_detected=False`, severity=0 |
 | MiDaS inference fails | road_analysis | Log warning, fall back to severity from YOLO confidence only |
-| No low-risk path found | routing_engine | Return minimum-risk available path with `"warning": "no_safe_route"` |
-| API key missing | any | Check at startup, exit with clear message before pipeline runs |
+|
 
 ---
 
