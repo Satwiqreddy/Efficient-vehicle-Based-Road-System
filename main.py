@@ -37,6 +37,6 @@ def run_pipeline(origin, destination):
 
 
 if __name__ == "__main__":
-    origin = "Kurnool, Andhra Pradesh"
-    destination = "Hyderabad, Telangana"
+    origin = "Banaganapalle, Andhra Pradesh"
+    destination = "Nandavaram, Andhra Pradesh"
     run_pipeline(origin, destination)
