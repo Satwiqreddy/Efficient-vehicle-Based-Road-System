@@ -5,10 +5,6 @@ import json
 
 
 def extract_road_region(image_path, output_dir="output/road_images"):
-    """
-    Extracts only the road region from a Street View image.
-    Removes sky, trees, buildings on the sides.
-    """
     os.makedirs(output_dir, exist_ok=True)
     filename = os.path.basename(image_path)
     output_path = os.path.join(output_dir, filename)
@@ -20,38 +16,41 @@ def extract_road_region(image_path, output_dir="output/road_images"):
 
     height, width = img.shape[:2]
 
-    # Step 1 — Crop bottom 60% only (road is always in bottom portion)
-    road_crop = img[int(height * 0.4):, :]
+    # Step 1 — Keep bottom 75% of image (remove only sky at top)
+    road_crop = img[int(height * 0.25):, :]
 
-    # Step 2 — Convert to grayscale and detect edges
-    gray = cv2.cvtColor(road_crop, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.Canny(blur, 50, 150)
+    # Step 2 — Create a wider trapezoid mask
+    h, w = road_crop.shape[:2]
+    mask = np.ones((h, w), dtype=np.uint8) * 255  # Start with all white
 
-    # Step 3 — Define trapezoid mask for road area
-    h, w = edges.shape
-    mask = np.zeros_like(edges)
-    polygon = np.array([[
-        (int(w * 0.0), h),          # Bottom left
-        (int(w * 0.35), int(h * 0.3)),  # Top left
-        (int(w * 0.65), int(h * 0.3)),  # Top right
-        (int(w * 1.0), h)           # Bottom right
+    # Block left side buildings
+    left_block = np.array([[
+        (0, 0),
+        (int(w * 0.15), 0),
+        (int(w * 0.15), int(h * 0.5)),
+        (0, h)
     ]], dtype=np.int32)
-    cv2.fillPoly(mask, polygon, 255)
 
-    # Step 4 — Apply mask to cropped image
+    # Block right side buildings
+    right_block = np.array([[
+        (int(w * 0.85), 0),
+        (w, 0),
+        (w, h),
+        (int(w * 0.85), int(h * 0.5))
+    ]], dtype=np.int32)
+
+    cv2.fillPoly(mask, left_block, 0)
+    cv2.fillPoly(mask, right_block, 0)
+
+    # Apply mask
     masked = cv2.bitwise_and(road_crop, road_crop, mask=mask)
 
-    # Step 5 — Save result
     cv2.imwrite(output_path, masked)
     print(f"Road extracted: {filename}")
     return output_path
 
 
 def process_all_images(images_index_path="output/images_index.json"):
-    """
-    Processes all Street View images and extracts road regions.
-    """
     with open(images_index_path, "r") as f:
         images = json.load(f)
 
@@ -65,7 +64,6 @@ def process_all_images(images_index_path="output/images_index.json"):
                 "image": path
             })
 
-    # Save updated index
     with open("output/road_images_index.json", "w") as f:
         json.dump(road_images, f, indent=2)
 
