@@ -2,6 +2,8 @@ import os
 import json
 import math
 import requests
+import cv2
+import numpy as np
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,7 +22,7 @@ def angle_difference(a, b):
     diff = abs(a - b) % 360
     return diff if diff <= 180 else 360 - diff
 
-# ── GET PANO METADATA ─────────────────────────────────────────────────────
+# ── METADATA ──────────────────────────────────────────────────────────────
 def get_pano_metadata(lat, lng, radius=50):
     """Get Street View panorama metadata including pano_id."""
     url = "https://maps.googleapis.com/maps/api/streetview/metadata"
@@ -40,6 +42,30 @@ def get_pano_by_id(pano_id):
         "key": API_KEY
     }
     return requests.get(url, params=params).json()
+
+# ── ROAD VISIBILITY CHECK ─────────────────────────────────────────────────
+def has_road_visible(filepath):
+    """Check if image actually shows a road."""
+    image = cv2.imread(filepath)
+    if image is None:
+        return False
+
+    h, w = image.shape[:2]
+
+    # Check bottom 50% only (road area)
+    bottom = image[int(h * 0.50):, :]
+    hsv    = cv2.cvtColor(bottom, cv2.COLOR_BGR2HSV)
+
+    # Road colors — gray/asphalt/concrete
+    gray_road     = cv2.inRange(hsv, np.array([0,  0,  20]), np.array([180, 50, 180]))
+    concrete_road = cv2.inRange(hsv, np.array([0,  0, 150]), np.array([180, 30, 255]))
+    road_mask     = cv2.bitwise_or(gray_road, concrete_road)
+
+    # Road must cover at least 15% of bottom half
+    road_percent = (np.sum(road_mask > 0) / road_mask.size) * 100
+    print(f"     🛣 Road visibility: {round(road_percent, 1)}%")
+
+    return road_percent >= 15
 
 # ── DOWNLOAD IMAGE ────────────────────────────────────────────────────────
 def download_image(pano_id=None, lat=None, lng=None,
@@ -63,8 +89,8 @@ def download_image(pano_id=None, lat=None, lng=None,
         params["pano"] = pano_id
     else:
         params["location"] = f"{lat},{lng}"
-        params["source"] = "outdoor"
-        params["radius"] = 50
+        params["source"]   = "outdoor"
+        params["radius"]   = 50
 
     response = requests.get(url, params=params)
     if response.status_code == 200 and response.headers["Content-Type"].startswith("image"):
@@ -73,14 +99,14 @@ def download_image(pano_id=None, lat=None, lng=None,
         return filepath
     return None
 
-# ── BUILD PANO CHAIN (real Street View navigation) ────────────────────────
+# ── BUILD PANO CHAIN ──────────────────────────────────────────────────────
 def build_pano_chain(waypoints):
     """
     Build a chain of connected panoramas from origin to destination.
     Like clicking forward in Google Street View.
     """
-    print("Building panorama chain...")
-    pano_chain   = []
+    print("Building panorama chain...\n")
+    pano_chain    = []
     visited_panos = set()
 
     for i, wp in enumerate(waypoints):
@@ -89,7 +115,11 @@ def build_pano_chain(waypoints):
 
         # Calculate forward heading
         if i < len(waypoints) - 1:
-            heading = calculate_heading(lat, lng, waypoints[i+1]["lat"], waypoints[i+1]["lng"])
+            heading = calculate_heading(
+                lat, lng,
+                waypoints[i+1]["lat"],
+                waypoints[i+1]["lng"]
+            )
         else:
             heading = pano_chain[-1]["heading"] if pano_chain else 0
 
@@ -99,13 +129,13 @@ def build_pano_chain(waypoints):
             print(f"  ⚠ No pano at waypoint {i+1} — skipping")
             continue
 
-        pano_id = meta.get("pano_id")
+        pano_id  = meta.get("pano_id")
         pano_lat = meta["location"]["lat"]
         pano_lng = meta["location"]["lng"]
 
-        # Skip if we already have this pano (avoid duplicates)
+        # Skip duplicate panos
         if pano_id in visited_panos:
-            print(f"  ↩ Waypoint {i+1} — same pano as previous, skipping duplicate")
+            print(f"  ↩ Waypoint {i+1} — duplicate pano, skipping")
             continue
 
         visited_panos.add(pano_id)
@@ -121,14 +151,15 @@ def build_pano_chain(waypoints):
             "origin_lng":     lng
         })
 
-        print(f"  ✅ Waypoint {i+1}/{len(waypoints)} → pano_id: {pano_id[:10]}... heading: {round(heading)}°")
+        print(f"  ✅ Waypoint {i+1}/{len(waypoints)} → "
+              f"pano: {pano_id[:10]}... | heading: {round(heading)}°")
 
     print(f"\n📍 Total unique panoramas: {len(pano_chain)}")
     return pano_chain
 
 # ── DOWNLOAD ALL PANO IMAGES ──────────────────────────────────────────────
 def download_pano_chain(pano_chain, output_dir="output/images"):
-    """Download all images in the pano chain."""
+    """Download all images — skip if no road visible."""
     os.makedirs(output_dir, exist_ok=True)
 
     # Clear old images
@@ -138,11 +169,13 @@ def download_pano_chain(pano_chain, output_dir="output/images"):
 
     print(f"\nDownloading {len(pano_chain)} images...\n")
     image_paths = []
+    skipped     = 0
 
     for pano in pano_chain:
         filename = f"step_{pano['step']:04d}_wp{pano['waypoint_index']:04d}.jpg"
-        print(f"  📸 Downloading step {pano['step']}: {filename}")
+        print(f"  📸 Step {pano['step']}/{len(pano_chain)}: {filename}")
 
+        # Try pano_id first
         filepath = download_image(
             pano_id    = pano["pano_id"],
             heading    = pano["heading"],
@@ -150,13 +183,9 @@ def download_pano_chain(pano_chain, output_dir="output/images"):
             filename   = filename
         )
 
-        if filepath:
-            pano["image"] = filepath
-            image_paths.append(pano)
-            print(f"     ✅ Saved: {filename}")
-        else:
-            # Fallback: use lat/lng if pano_id fails
-            print(f"     ⚠ pano_id failed, trying lat/lng fallback...")
+        # Fallback to lat/lng
+        if not filepath:
+            print(f"     ⚠ pano_id failed — trying lat/lng fallback...")
             filepath = download_image(
                 lat        = pano["lat"],
                 lng        = pano["lng"],
@@ -164,40 +193,54 @@ def download_pano_chain(pano_chain, output_dir="output/images"):
                 output_dir = output_dir,
                 filename   = filename
             )
-            if filepath:
-                pano["image"] = filepath
-                image_paths.append(pano)
-                print(f"     ✅ Saved via fallback: {filename}")
-            else:
-                print(f"     ❌ Failed to download step {pano['step']}")
 
+        # Download failed completely
+        if not filepath:
+            print(f"     ❌ Download failed — skipping")
+            skipped += 1
+            continue
+
+        # Check if road is visible
+        if not has_road_visible(filepath):
+            print(f"     ❌ No road visible — skipping")
+            os.remove(filepath)
+            skipped += 1
+            continue
+
+        print(f"     ✅ Saved: {filename}")
+        pano["image"] = filepath
+        image_paths.append(pano)
+
+    print(f"\n✅ Images with road  : {len(image_paths)}")
+    print(f"❌ Skipped (no road) : {skipped}")
     return image_paths
 
 # ── MAIN FUNCTION ─────────────────────────────────────────────────────────
 def fetch_all_images(waypoints_path="output/waypoints.json"):
     """
-    Main function — builds pano chain and downloads all forward-facing images.
-    Simulates walking/driving from origin to destination in Street View.
+    Main function — builds pano chain and downloads all forward-facing
+    road images. Simulates walking from origin to destination in Street View.
     """
     with open(waypoints_path, "r") as f:
         waypoints = json.load(f)
 
-    print(f"Total waypoints: {len(waypoints)}")
-    print(f"Simulating Street View navigation from origin to destination...\n")
+    print(f"Total waypoints      : {len(waypoints)}")
+    print(f"Navigating from origin to destination...\n")
+    print("=" * 50)
 
     # Step 1: Build panorama chain
     pano_chain = build_pano_chain(waypoints)
 
-    # Step 2: Download all images
+    # Step 2: Download all road images
     image_paths = download_pano_chain(pano_chain)
 
-    # Step 3: Save full index
+    # Step 3: Save index
     with open("output/images_index.json", "w") as f:
         json.dump(image_paths, f, indent=2)
 
-    print(f"\n✅ Total images downloaded : {len(image_paths)}")
-    print(f"📁 Saved in               : output/images/")
-    print(f"📄 Index saved in         : output/images_index.json")
+    print(f"\n🎉 Done!")
+    print(f"📁 Images saved in   : output/images/")
+    print(f"📄 Index saved in    : output/images_index.json")
 
     return image_paths
 
