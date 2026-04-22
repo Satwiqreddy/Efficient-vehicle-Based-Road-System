@@ -24,7 +24,6 @@ def angle_difference(a, b):
 
 # ── METADATA ──────────────────────────────────────────────────────────────
 def get_pano_metadata(lat, lng, radius=50):
-    """Get Street View panorama metadata including pano_id."""
     url = "https://maps.googleapis.com/maps/api/streetview/metadata"
     params = {
         "location": f"{lat},{lng}",
@@ -35,7 +34,6 @@ def get_pano_metadata(lat, lng, radius=50):
     return requests.get(url, params=params).json()
 
 def get_pano_by_id(pano_id):
-    """Get metadata for a specific panorama by pano_id."""
     url = "https://maps.googleapis.com/maps/api/streetview/metadata"
     params = {
         "pano": pano_id,
@@ -45,46 +43,68 @@ def get_pano_by_id(pano_id):
 
 # ── ROAD VISIBILITY CHECK ─────────────────────────────────────────────────
 def has_road_visible(filepath):
-    """Check if image actually shows a road."""
+    """Strict road visibility check — rejects shops, vegetation, garbage."""
     image = cv2.imread(filepath)
     if image is None:
         return False
 
     h, w = image.shape[:2]
 
-    # Check bottom 50% only (road area)
-    bottom = image[int(h * 0.50):, :]
+    # Check bottom 40% only (strict road area)
+    bottom = image[int(h * 0.60):, :]
     hsv    = cv2.cvtColor(bottom, cv2.COLOR_BGR2HSV)
 
-    # Road colors — gray/asphalt/concrete
-    gray_road     = cv2.inRange(hsv, np.array([0,  0,  20]), np.array([180, 50, 180]))
-    concrete_road = cv2.inRange(hsv, np.array([0,  0, 150]), np.array([180, 30, 255]))
-    road_mask     = cv2.bitwise_or(gray_road, concrete_road)
+    # Road colors — asphalt gray only (strict range)
+    asphalt = cv2.inRange(hsv,
+                          np.array([0,  0,  40]),
+                          np.array([180, 35, 160]))
 
-    # Road must cover at least 15% of bottom half
+    # Exclude non-road colors
+    green  = cv2.inRange(hsv, np.array([35, 40,  40]),  np.array([85,  255, 255]))  # grass/trees
+    brown  = cv2.inRange(hsv, np.array([10, 40,  40]),  np.array([20,  255, 180]))  # dirt
+    bright = cv2.inRange(hsv, np.array([0,  60,  150]), np.array([180, 255, 255]))  # shops/tiles
+    dark   = cv2.inRange(hsv, np.array([0,  0,   0]),   np.array([180, 255,  40]))  # darkness/vegetation
+
+    exclude   = cv2.bitwise_or(green,  brown)
+    exclude   = cv2.bitwise_or(exclude, bright)
+    exclude   = cv2.bitwise_or(exclude, dark)
+
+    # Clean road mask
+    road_mask = cv2.bitwise_and(asphalt, cv2.bitwise_not(exclude))
+
+    # Remove tiny noise
+    kernel    = np.ones((5, 5), np.uint8)
+    road_mask = cv2.morphologyEx(road_mask, cv2.MORPH_OPEN, kernel)
+
     road_percent = (np.sum(road_mask > 0) / road_mask.size) * 100
-    print(f"     🛣 Road visibility: {round(road_percent, 1)}%")
 
-    return road_percent >= 15
+    # Road must appear across multiple rows (horizontal strip)
+    row_coverage   = np.sum(road_mask > 0, axis=1)
+    rows_with_road = np.sum(row_coverage > (w * 0.20))
+    row_percent    = (rows_with_road / road_mask.shape[0]) * 100
+
+    print(f"     🛣 Road visibility : {round(road_percent, 1)}%")
+    print(f"     📏 Row coverage    : {round(row_percent,  1)}%")
+
+    # Need BOTH: 20%+ road pixels AND road across multiple rows
+    return road_percent >= 20 and row_percent >= 30
 
 # ── DOWNLOAD IMAGE ────────────────────────────────────────────────────────
 def download_image(pano_id=None, lat=None, lng=None,
                    heading=0, output_dir="output/images",
                    filename="image.jpg", size="640x480"):
-    """Download Street View image using pano_id (preferred) or lat/lng."""
     os.makedirs(output_dir, exist_ok=True)
     filepath = os.path.join(output_dir, filename)
 
-    url = "https://maps.googleapis.com/maps/api/streetview"
+    url    = "https://maps.googleapis.com/maps/api/streetview"
     params = {
-        "size": size,
+        "size":    size,
         "heading": round(heading, 2),
-        "pitch": -10,
-        "fov": 75,
-        "key": API_KEY
+        "pitch":   -10,
+        "fov":     75,
+        "key":     API_KEY
     }
 
-    # Use pano_id if available (more accurate)
     if pano_id:
         params["pano"] = pano_id
     else:
@@ -93,7 +113,8 @@ def download_image(pano_id=None, lat=None, lng=None,
         params["radius"]   = 50
 
     response = requests.get(url, params=params)
-    if response.status_code == 200 and response.headers["Content-Type"].startswith("image"):
+    if response.status_code == 200 and \
+       response.headers["Content-Type"].startswith("image"):
         with open(filepath, "wb") as f:
             f.write(response.content)
         return filepath
@@ -102,7 +123,7 @@ def download_image(pano_id=None, lat=None, lng=None,
 # ── BUILD PANO CHAIN ──────────────────────────────────────────────────────
 def build_pano_chain(waypoints):
     """
-    Build a chain of connected panoramas from origin to destination.
+    Build chain of connected panoramas from origin to destination.
     Like clicking forward in Google Street View.
     """
     print("Building panorama chain...\n")
@@ -113,7 +134,7 @@ def build_pano_chain(waypoints):
         lat = wp["lat"]
         lng = wp["lng"]
 
-        # Calculate forward heading
+        # Calculate forward heading toward next waypoint
         if i < len(waypoints) - 1:
             heading = calculate_heading(
                 lat, lng,
@@ -123,7 +144,7 @@ def build_pano_chain(waypoints):
         else:
             heading = pano_chain[-1]["heading"] if pano_chain else 0
 
-        # Get panorama at this waypoint
+        # Get panorama metadata at this waypoint
         meta = get_pano_metadata(lat, lng, radius=100)
         if meta.get("status") != "OK":
             print(f"  ⚠ No pano at waypoint {i+1} — skipping")
@@ -133,7 +154,7 @@ def build_pano_chain(waypoints):
         pano_lat = meta["location"]["lat"]
         pano_lng = meta["location"]["lng"]
 
-        # Skip duplicate panos
+        # Skip duplicate panoramas
         if pano_id in visited_panos:
             print(f"  ↩ Waypoint {i+1} — duplicate pano, skipping")
             continue
@@ -194,13 +215,13 @@ def download_pano_chain(pano_chain, output_dir="output/images"):
                 filename   = filename
             )
 
-        # Download failed completely
+        # Download failed
         if not filepath:
             print(f"     ❌ Download failed — skipping")
             skipped += 1
             continue
 
-        # Check if road is visible
+        # Check road visibility
         if not has_road_visible(filepath):
             print(f"     ❌ No road visible — skipping")
             os.remove(filepath)
@@ -218,8 +239,8 @@ def download_pano_chain(pano_chain, output_dir="output/images"):
 # ── MAIN FUNCTION ─────────────────────────────────────────────────────────
 def fetch_all_images(waypoints_path="output/waypoints.json"):
     """
-    Main function — builds pano chain and downloads all forward-facing
-    road images. Simulates walking from origin to destination in Street View.
+    Main — builds pano chain and downloads all forward-facing road images.
+    Simulates walking/driving from origin to destination in Street View.
     """
     with open(waypoints_path, "r") as f:
         waypoints = json.load(f)
@@ -231,7 +252,7 @@ def fetch_all_images(waypoints_path="output/waypoints.json"):
     # Step 1: Build panorama chain
     pano_chain = build_pano_chain(waypoints)
 
-    # Step 2: Download all road images
+    # Step 2: Download road images only
     image_paths = download_pano_chain(pano_chain)
 
     # Step 3: Save index
@@ -239,8 +260,8 @@ def fetch_all_images(waypoints_path="output/waypoints.json"):
         json.dump(image_paths, f, indent=2)
 
     print(f"\n🎉 Done!")
-    print(f"📁 Images saved in   : output/images/")
-    print(f"📄 Index saved in    : output/images_index.json")
+    print(f"📁 Images saved in : output/images/")
+    print(f"📄 Index saved in  : output/images_index.json")
 
     return image_paths
 
