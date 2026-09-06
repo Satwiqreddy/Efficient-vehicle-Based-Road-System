@@ -1,0 +1,42 @@
+"""
+Runs proper validation metrics (precision, recall, mAP50, mAP50-95) at a
+SPECIFIC confidence threshold, so you can directly compare conf=0.2 vs
+conf=0.3 vs any other value on the same footing.
+
+Usage (from project root):
+    python scripts/eval_at_conf.py --model runs/detect/speedbreaker_final-3/weights/best.pt --conf 0.2
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+from ultralytics import YOLO
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from src import config  # noqa: E402
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", required=True, help="Path to trained weights (.pt)")
+    parser.add_argument("--conf", type=float, required=True, help="Confidence threshold to evaluate at")
+    args = parser.parse_args()
+
+    model = YOLO(args.model)
+
+    metrics = model.val(
+        data=str(config.SPEEDBREAKER_DATA_DIR / "data.yaml"),
+        imgsz=640,
+        conf=args.conf,
+    )
+
+    print(f"\n=== Metrics at conf={args.conf} ===")
+    print("Precision:", metrics.box.mp)
+    print("Recall:", metrics.box.mr)
+    print("mAP50:", metrics.box.map50)
+    print("mAP50-95:", metrics.box.map)
+
+
+if __name__ == "__main__":
+    main()
