@@ -1,22 +1,23 @@
 """
-Complete speed breaker pipeline. For every image in --source:
+Complete pothole pipeline, mirroring detect_speedbreakers_and_risk.py.
+For every image in --source:
 
-  1. Run the trained YOLO speed breaker model on it.
-  2. If a speed breaker is found:
+  1. Run the trained YOLO pothole model on it.
+  2. If a pothole is found:
        - draw the box on the image
-       - compute a severity score (based on how large the box is
-         relative to the image -- a rough proxy for how close/big
-         the bump is)
-       - combine confidence + severity + vehicle ground clearance
-         into a personalized risk score and Low/Medium/High class
+       - estimate severity using DEPTH (comparing the pothole's depth
+         against the surrounding road surface) -- richer than the
+         box-area heuristic used for speed breakers, since potholes are
+         depressions and depth is a meaningful visual signal for them.
+       - combine confidence + severity + vehicle ground clearance into
+         a personalized risk score and Low/Medium/High class
        - save the annotated image into output/detected/
-  3. If nothing is found:
-       - save the original image into output/no_speedbreaker/
-  4. Write one row per image into results.csv summarizing everything.
+  3. If nothing is found: save the original image into output/no_pothole/
+  4. Write one row per image into results.csv.
 
-Usage (from project root, after training a speedbreaker model):
-    python scripts/detect_speedbreakers_and_risk.py \
-        --model models/speedbreaker_best.pt \
+Usage (from project root, after training a pothole model):
+    python scripts/detect_potholes_and_risk.py \
+        --model models/pothole_best.pt \
         --source path/to/images \
         --clearance 16.5 \
         --conf 0.3
@@ -29,35 +30,18 @@ import sys
 from pathlib import Path
 
 import cv2
+from PIL import Image
 from ultralytics import YOLO
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import risk_engine  # noqa: E402
-
-
-def estimate_speedbreaker_severity(box_xyxy, img_w, img_h):
-    """
-    Heuristic severity for speed breakers: larger box relative to the
-    frame roughly correlates with a bigger/closer bump. This is a
-    placeholder, not a validated measurement -- unlike the pothole
-    model's depth-based severity, there is no geometric ground-truth
-    behind this number yet. Treat Low/Medium/High as relative ranking,
-    not an exact physical measurement, until you validate it against
-    real labeled examples.
-    """
-    x1, y1, x2, y2 = box_xyxy
-    box_area = (x2 - x1) * (y2 - y1)
-    frame_area = img_w * img_h
-    area_ratio = box_area / frame_area
-
-    # Normalize: a box covering ~40%+ of the frame is treated as "very severe" (1.0)
-    severity = min(area_ratio / 0.4, 1.0)
-    return severity
+from src.depth_severity import DepthEstimator, calculate_depth_score  # noqa: E402
+from src.utils import get_device  # noqa: E402
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", required=True, help="Path to trained speedbreaker_best.pt")
+    parser.add_argument("--model", required=True, help="Path to trained pothole_best.pt")
     parser.add_argument("--source", required=True, help="Folder of images to process")
     parser.add_argument("--clearance", type=float, required=True,
                          help="Vehicle ground clearance in cm, e.g. 16.5")
@@ -74,20 +58,22 @@ def main():
 
     output_root = Path(args.output) if args.output else source / "results"
     detected_dir = output_root / "detected"
-    no_detection_dir = output_root / "no_speedbreaker"
+    no_detection_dir = output_root / "no_pothole"
     detected_dir.mkdir(parents=True, exist_ok=True)
     no_detection_dir.mkdir(parents=True, exist_ok=True)
 
+    device = get_device()
     model = YOLO(args.model)
+    depth_estimator = DepthEstimator(device)
 
     rows = []
     detected_count = 0
 
     for img_path in images:
-        image = cv2.imread(str(img_path))
-        if image is None:
+        cv_image = cv2.imread(str(img_path))
+        if cv_image is None:
             continue
-        h, w = image.shape[:2]
+        h, w = cv_image.shape[:2]
 
         result = model.predict(source=str(img_path), conf=args.conf, verbose=False)[0]
 
@@ -95,40 +81,54 @@ def main():
             shutil.copy(img_path, no_detection_dir / img_path.name)
             rows.append({
                 "image": img_path.name,
-                "speedbreaker_detected": False,
+                "pothole_detected": False,
                 "confidence": "",
-                "severity": "",
+                "relative_depth": "",
                 "risk_score": "",
                 "risk_class": "",
             })
             continue
 
-        # Keep the highest-confidence box if there are multiple detections
+        # Depth estimation needs the image loaded via PIL, separately from
+        # the OpenCV image used for drawing boxes below.
+        pil_image = Image.open(img_path).convert("RGB")
+        depth_map = depth_estimator.estimate(pil_image)
+
         best_idx = result.boxes.conf.argmax().item()
         confidence = float(result.boxes.conf[best_idx])
         box = result.boxes.xyxy[best_idx].tolist()
 
-        severity = estimate_speedbreaker_severity(box, w, h)
+        depth_result = calculate_depth_score(depth_map, box)
+
+        if depth_result is None:
+            # Depth estimation failed for this box (degenerate ROI) --
+            # fall back to confidence-only severity rather than crashing.
+            severity = confidence
+            relative_depth = None
+        else:
+            pothole_depth, road_depth, difference = depth_result
+            relative_depth = abs(difference) / (abs(road_depth) + 1e-6)
+            severity = min(relative_depth / 0.2, 1.0)  # same normalization as depth_severity.py
+
         base_risk = risk_engine.combined_risk_score(confidence, severity)
         final_risk = risk_engine.personalized_risk(base_risk, args.clearance)
         risk_class = risk_engine.risk_class(final_risk)
 
-        # Draw the box + risk label on the image
         x1, y1, x2, y2 = map(int, box)
         color = {"Low": (0, 200, 0), "Medium": (0, 165, 255), "High": (0, 0, 255)}[risk_class]
-        cv2.rectangle(image, (x1, y1), (x2, y2), color, 3)
+        cv2.rectangle(cv_image, (x1, y1), (x2, y2), color, 3)
         label = f"{risk_class} risk ({final_risk:.2f})"
-        cv2.putText(image, label, (x1, max(y1 - 10, 20)),
+        cv2.putText(cv_image, label, (x1, max(y1 - 10, 20)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
-        cv2.imwrite(str(detected_dir / img_path.name), image)
+        cv2.imwrite(str(detected_dir / img_path.name), cv_image)
         detected_count += 1
 
         rows.append({
             "image": img_path.name,
-            "speedbreaker_detected": True,
+            "pothole_detected": True,
             "confidence": round(confidence, 3),
-            "severity": round(severity, 3),
+            "relative_depth": round(relative_depth, 3) if relative_depth is not None else "",
             "risk_score": round(final_risk, 3),
             "risk_class": risk_class,
         })
@@ -136,14 +136,14 @@ def main():
     csv_path = output_root / "results.csv"
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=[
-            "image", "speedbreaker_detected", "confidence", "severity", "risk_score", "risk_class"
+            "image", "pothole_detected", "confidence", "relative_depth", "risk_score", "risk_class"
         ])
         writer.writeheader()
         writer.writerows(rows)
 
     print(f"Total images: {len(images)}")
-    print(f"Speed breaker detected: {detected_count} -> {detected_dir}")
-    print(f"No speed breaker: {len(images) - detected_count} -> {no_detection_dir}")
+    print(f"Pothole detected: {detected_count} -> {detected_dir}")
+    print(f"No pothole: {len(images) - detected_count} -> {no_detection_dir}")
     print(f"Full report: {csv_path}")
 
 
