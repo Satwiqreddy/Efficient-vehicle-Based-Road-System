@@ -86,7 +86,8 @@ def main():
     if test_count:
         print(f"Test: {test_count} images -> {dest_root / 'images' / 'test'}")
     print(f"\ndata.yaml written to: {data_yaml}")
-    print("\nNext: python -m src.train_speedbreaker")
+    next_command = "train_pothole" if args.hazard == "pothole" else "train_speedbreaker"
+    print(f"\nNext: python -m src.{next_command}")
 
 
 if __name__ == "__main__":

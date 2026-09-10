@@ -18,7 +18,7 @@ Usage (from project root, after training a speedbreaker model):
     python scripts/detect_speedbreakers_and_risk.py \
         --model models/speedbreaker_best.pt \
         --source path/to/images \
-        --clearance 16.5 \
+        --vehicle "Honda City" \
         --conf 0.3
 """
 
@@ -33,6 +33,20 @@ from ultralytics import YOLO
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import risk_engine  # noqa: E402
+from src.vehicle import get_vehicle  # noqa: E402
+
+# Roboflow's training export stretched every image to a square, distorting
+# aspect ratio rather than padding it. YOLO's default inference behavior
+# instead LETTERBOXES (preserves aspect ratio, adds gray padding) -- a real
+# mismatch for wide/panoramic images, where the two methods produce very
+# different-looking results. Matching the stretch behavior here keeps
+# inference consistent with what the model actually learned from.
+INFERENCE_SIZE = 640
+
+
+def stretch_resize(image, size=INFERENCE_SIZE):
+    """Matches Roboflow's training-time stretch resize instead of YOLO's default letterbox padding."""
+    return cv2.resize(image, (size, size), interpolation=cv2.INTER_LINEAR)
 
 
 def estimate_speedbreaker_severity(box_xyxy, img_w, img_h):
@@ -59,11 +73,21 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True, help="Path to trained speedbreaker_best.pt")
     parser.add_argument("--source", required=True, help="Folder of images to process")
-    parser.add_argument("--clearance", type=float, required=True,
-                         help="Vehicle ground clearance in cm, e.g. 16.5")
+    parser.add_argument("--vehicle", required=True,
+                         help="Vehicle name from vehicles.csv, e.g. 'Honda City'. "
+                              "Run 'python -m src.vehicle' to see the full list.")
     parser.add_argument("--conf", type=float, default=0.3, help="Detection confidence threshold")
     parser.add_argument("--output", default=None, help="Output folder (default: <source>/results)")
     args = parser.parse_args()
+
+    vehicle = get_vehicle(args.vehicle)
+    if vehicle is None:
+        raise ValueError(
+            f"Vehicle '{args.vehicle}' not found in vehicles.csv. "
+            f"Run 'python -m src.vehicle' to see the available list."
+        )
+    clearance_cm = vehicle["ground_clearance_mm"] / 10
+    print(f"Using vehicle: {vehicle['vehicle']} ({vehicle['ground_clearance_mm']}mm ground clearance)")
 
     source = Path(args.source)
     images = sorted(
@@ -87,9 +111,17 @@ def main():
         image = cv2.imread(str(img_path))
         if image is None:
             continue
+
+        # Resize BEFORE detection so the model sees images the same way it
+        # did during training (stretched to square, not letterbox-padded).
+        # All detection, severity, and drawing below happens on this
+        # resized image so box coordinates stay consistent -- mixing
+        # coordinates from the resized image with the original-size image
+        # would place boxes in the wrong spot.
+        image = stretch_resize(image)
         h, w = image.shape[:2]
 
-        result = model.predict(source=str(img_path), conf=args.conf, verbose=False)[0]
+        result = model.predict(source=image, conf=args.conf, verbose=False)[0]
 
         if len(result.boxes) == 0:
             shutil.copy(img_path, no_detection_dir / img_path.name)
@@ -110,7 +142,7 @@ def main():
 
         severity = estimate_speedbreaker_severity(box, w, h)
         base_risk = risk_engine.combined_risk_score(confidence, severity)
-        final_risk = risk_engine.personalized_risk(base_risk, args.clearance)
+        final_risk = risk_engine.personalized_risk(base_risk, clearance_cm)
         risk_class = risk_engine.risk_class(final_risk)
 
         # Draw the box + risk label on the image

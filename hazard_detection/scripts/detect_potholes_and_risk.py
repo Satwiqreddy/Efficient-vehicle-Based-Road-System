@@ -19,7 +19,7 @@ Usage (from project root, after training a pothole model):
     python scripts/detect_potholes_and_risk.py \
         --model models/pothole_best.pt \
         --source path/to/images \
-        --clearance 16.5 \
+        --vehicle "Honda City" \
         --conf 0.3
 """
 
@@ -37,17 +37,43 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import risk_engine  # noqa: E402
 from src.depth_severity import DepthEstimator, calculate_depth_score  # noqa: E402
 from src.utils import get_device  # noqa: E402
+from src.vehicle import get_vehicle  # noqa: E402
+
+# Same fix as detect_speedbreakers_and_risk.py: if your training images
+# went through a stretch-to-square preprocessing step (check your
+# Roboflow export README), match that here too, or wide/panoramic
+# source images will be preprocessed differently at inference than
+# they were during training.
+INFERENCE_SIZE = 640
+
+
+def stretch_resize(image, size=INFERENCE_SIZE):
+    return cv2.resize(image, (size, size), interpolation=cv2.INTER_LINEAR)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True, help="Path to trained pothole_best.pt")
     parser.add_argument("--source", required=True, help="Folder of images to process")
-    parser.add_argument("--clearance", type=float, required=True,
-                         help="Vehicle ground clearance in cm, e.g. 16.5")
+    parser.add_argument("--vehicle", required=True,
+                         help="Vehicle name from vehicles.csv, e.g. 'Honda City'. "
+                              "Run 'python -m src.vehicle' to see the full list.")
     parser.add_argument("--conf", type=float, default=0.3, help="Detection confidence threshold")
     parser.add_argument("--output", default=None, help="Output folder (default: <source>/results)")
+    parser.add_argument("--augment", action="store_true",
+                         help="Enable test-time augmentation (TTA) -- runs inference on flipped/scaled "
+                              "versions of each image and combines results. Slower (roughly 2-3x per "
+                              "image) but often improves accuracy by a few percent with zero retraining.")
     args = parser.parse_args()
+
+    vehicle = get_vehicle(args.vehicle)
+    if vehicle is None:
+        raise ValueError(
+            f"Vehicle '{args.vehicle}' not found in vehicles.csv. "
+            f"Run 'python -m src.vehicle' to see the available list."
+        )
+    clearance_cm = vehicle["ground_clearance_mm"] / 10
+    print(f"Using vehicle: {vehicle['vehicle']} ({vehicle['ground_clearance_mm']}mm ground clearance)")
 
     source = Path(args.source)
     images = sorted(
@@ -73,9 +99,14 @@ def main():
         cv_image = cv2.imread(str(img_path))
         if cv_image is None:
             continue
+
+        # Resize before detection so preprocessing matches training
+        # (see note above). All boxes/severity below use this resized
+        # image's coordinate space, kept consistent throughout.
+        cv_image = stretch_resize(cv_image)
         h, w = cv_image.shape[:2]
 
-        result = model.predict(source=str(img_path), conf=args.conf, verbose=False)[0]
+        result = model.predict(source=cv_image, conf=args.conf, augment=args.augment, verbose=False)[0]
 
         if len(result.boxes) == 0:
             shutil.copy(img_path, no_detection_dir / img_path.name)
@@ -89,9 +120,11 @@ def main():
             })
             continue
 
-        # Depth estimation needs the image loaded via PIL, separately from
-        # the OpenCV image used for drawing boxes below.
-        pil_image = Image.open(img_path).convert("RGB")
+        # Depth estimation needs a PIL RGB image -- convert from the SAME
+        # resized cv_image used for detection, so box coordinates and the
+        # depth map share the same coordinate space. Using the original
+        # unresized image here would misalign the box with the depth map.
+        pil_image = Image.fromarray(cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB))
         depth_map = depth_estimator.estimate(pil_image)
 
         best_idx = result.boxes.conf.argmax().item()
@@ -111,7 +144,7 @@ def main():
             severity = min(relative_depth / 0.2, 1.0)  # same normalization as depth_severity.py
 
         base_risk = risk_engine.combined_risk_score(confidence, severity)
-        final_risk = risk_engine.personalized_risk(base_risk, args.clearance)
+        final_risk = risk_engine.personalized_risk(base_risk, clearance_cm)
         risk_class = risk_engine.risk_class(final_risk)
 
         x1, y1, x2, y2 = map(int, box)
