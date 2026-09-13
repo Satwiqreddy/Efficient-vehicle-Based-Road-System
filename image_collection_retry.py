@@ -18,6 +18,7 @@ Usage (from repo root):
 """
 
 import os
+import time
 
 from image_collection.streetview_fetcher import download_image, has_road_visible
 
@@ -26,53 +27,56 @@ from image_collection.streetview_fetcher import download_image, has_road_visible
 HEADING_OFFSETS = [0, -30, 30, -60, 60, 180]
 
 
+def download_image_with_retry(max_retries=3, **kwargs):
+    """Wraps download_image with retries for transient network errors."""
+    for attempt in range(max_retries):
+        try:
+            return download_image(**kwargs)
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"     Network error ({e}), retrying...")
+                time.sleep(2)
+            else:
+                print(f"     Network error after {max_retries} attempts, skipping this heading")
+                return None
+
+
 def download_pano_chain_with_retries(pano_chain, output_dir="output/images"):
-    """Same behavior as download_pano_chain, but tries multiple headings per waypoint."""
+    """Downloads one image per waypoint. Keeps every image that downloads
+    successfully -- does NOT filter by road visibility, so nothing gets
+    skipped just because the heuristic isn't confident about the road."""
     os.makedirs(output_dir, exist_ok=True)
 
     for f in os.listdir(output_dir):
         if f.endswith(".jpg") or f.endswith(".png"):
             os.remove(os.path.join(output_dir, f))
 
-    print(f"\nDownloading {len(pano_chain)} images (with heading retries)...\n")
+    print(f"\nDownloading {len(pano_chain)} images (no skipping)...\n")
     image_paths = []
-    skipped = 0
+    failed = 0
 
     for pano in pano_chain:
         filename = f"step_{pano['step']:04d}_wp{pano['waypoint_index']:04d}.jpg"
         print(f"  Step {pano['step']}/{len(pano_chain)}: {filename}")
 
-        found_road = False
-
-        for offset in HEADING_OFFSETS:
-            heading = (pano["heading"] + offset) % 360
-
-            filepath = download_image(
-                pano_id=pano["pano_id"], heading=heading,
+        filepath = download_image_with_retry(
+            pano_id=pano["pano_id"], heading=pano["heading"],
+            output_dir=output_dir, filename=filename,
+        )
+        if not filepath:
+            filepath = download_image_with_retry(
+                lat=pano["lat"], lng=pano["lng"], heading=pano["heading"],
                 output_dir=output_dir, filename=filename,
             )
-            if not filepath:
-                filepath = download_image(
-                    lat=pano["lat"], lng=pano["lng"], heading=heading,
-                    output_dir=output_dir, filename=filename,
-                )
-            if not filepath:
-                continue
 
-            if has_road_visible(filepath):
-                print(f"     Saved (heading offset {offset:+}deg): {filename}")
-                pano["image"] = filepath
-                pano["heading_used"] = heading
-                image_paths.append(pano)
-                found_road = True
-                break
-            else:
-                os.remove(filepath)
+        if filepath:
+            print(f"     Saved: {filename}")
+            pano["image"] = filepath
+            image_paths.append(pano)
+        else:
+            print(f"     Download failed (network issue) -- could not save")
+            failed += 1
 
-        if not found_road:
-            print(f"     No road visible at any tried heading -- skipping")
-            skipped += 1
-
-    print(f"\nImages with road  : {len(image_paths)}")
-    print(f"Skipped (no road) : {skipped}")
+    print(f"\nImages saved  : {len(image_paths)}")
+    print(f"Download failures : {failed}")
     return image_paths
