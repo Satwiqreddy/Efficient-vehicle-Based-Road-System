@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Clock, MapPin, Car, ArrowRight, Trash2 } from 'lucide-react';
 import { VEHICLE_DATABASE, DEFAULT_VEHICLE } from '../data/vehicles';
 import { buildRouteView } from '../services/risk';
+import { displayPlace } from '../services/geo';
 
 export default function HistoryModal({ isOpen, onClose, onSelectHistoryRoute, onClear, historyItems }) {
   if (!isOpen) return null;
@@ -50,9 +51,9 @@ export default function HistoryModal({ isOpen, onClose, onSelectHistoryRoute, on
 
                     <div className="history-route-path">
                       <MapPin size={15} className="text-success" />
-                      <span className="font-semibold">{item.startLocation}</span>
+                      <span className="font-semibold">{item.originAddress || displayPlace(item.startLocation)}</span>
                       <ArrowRight size={14} className="text-muted" />
-                      <span className="font-semibold">{item.destination}</span>
+                      <span className="font-semibold">{item.destinationAddress || displayPlace(item.destination)}</span>
                     </div>
 
                     <div className="history-meta-row">

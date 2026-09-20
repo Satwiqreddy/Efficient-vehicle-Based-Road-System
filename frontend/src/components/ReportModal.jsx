@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Printer, Shield } from 'lucide-react';
+import { displayPlace } from '../services/geo';
 
 function buildRecommendations(routeData, vehicle) {
   const hazards = routeData.hazards || [];
@@ -78,11 +79,11 @@ export default function ReportModal({ isOpen, onClose, routeData, vehicle }) {
             <div className="report-table-grid">
               <div className="report-grid-cell">
                 <span className="report-cell-label">Start Origin:</span>
-                <span className="report-cell-value">{routeData.startLocation}</span>
+                <span className="report-cell-value">{routeData.originAddress || displayPlace(routeData.startLocation)}</span>
               </div>
               <div className="report-grid-cell">
                 <span className="report-cell-label">Destination:</span>
-                <span className="report-cell-value">{routeData.destination}</span>
+                <span className="report-cell-value">{routeData.destinationAddress || displayPlace(routeData.destination)}</span>
               </div>
               <div className="report-grid-cell">
                 <span className="report-cell-label">Route:</span>

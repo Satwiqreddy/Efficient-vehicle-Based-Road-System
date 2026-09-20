@@ -46,6 +46,9 @@ def get_alternative_routes(origin: str, destination: str) -> list[dict]:
             "polyline": route["overview_polyline"]["points"],
             "points": points,
             "distance_km": leg["distance"]["value"] / 1000,
+            # resolved by Google -- gives "lat,lng" inputs a human-readable name
+            "start_address": leg.get("start_address", ""),
+            "end_address": leg.get("end_address", ""),
             "duration_min": leg["duration"]["value"] / 60,
             "summary": route.get("summary", ""),
         })

@@ -259,6 +259,8 @@ def analyze_routes(req: RouteRequest, report) -> dict:
     return {
         "origin": req.origin,
         "destination": req.destination,
+        "origin_address": raw_routes[0].get("start_address", ""),
+        "destination_address": raw_routes[0].get("end_address", ""),
         "vehicle": vehicle_dict,
         "recommended_route_index": best_route["route_index"],
         "analysis_time_sec": round(time.time() - t_start, 1),

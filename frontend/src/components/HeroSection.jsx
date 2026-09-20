@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Car, MapPin, Search, Sparkles, Navigation2, ArrowRightLeft } from 'lucide-react';
+import { Car, MapPin, Search, Sparkles, Navigation2, ArrowRightLeft, MapPinned } from 'lucide-react';
 import { VEHICLE_DATABASE } from '../data/vehicles';
 import { PRESET_ROUTES } from '../data/sampleRouteData';
 import LoadingProverbs from './LoadingProverbs';
@@ -17,7 +17,9 @@ export default function HeroSection({
   progress,
   analysisError,
   liveMode,
-  backendOnline
+  backendOnline,
+  onOpenPicker,
+  canPick
 }) {
   const [showPresets, setShowPresets] = useState(false);
 
@@ -134,7 +136,7 @@ export default function HeroSection({
                     className="form-input"
                     value={startLocation}
                     onChange={(e) => setStartLocation(e.target.value)}
-                    placeholder="Enter starting address or landmark..."
+                    placeholder="Address, landmark, or lat,lng from the map picker"
                     required
                   />
                   <Search size={16} className="input-search-icon" />
@@ -155,7 +157,7 @@ export default function HeroSection({
                     className="form-input"
                     value={destination}
                     onChange={(e) => setDestination(e.target.value)}
-                    placeholder="Enter destination..."
+                    placeholder="Address, landmark, or lat,lng"
                     required
                   />
                   <Search size={16} className="input-search-icon" />
@@ -219,6 +221,16 @@ export default function HeroSection({
                   >
                     <Search size={18} />
                     <span>Analyze Route with AI</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-pick-on-map"
+                    onClick={onOpenPicker}
+                    disabled={!canPick}
+                    title={canPick ? 'Choose start and destination by clicking on a map' : 'Needs the Google Maps key (see Settings / backend .env)'}
+                  >
+                    <MapPinned size={17} />
+                    <span>Select origin &amp; destination on map</span>
                   </button>
                   <div className={`form-subtext ${analysisError ? 'form-subtext-error' : ''}`}>
                     {analysisError

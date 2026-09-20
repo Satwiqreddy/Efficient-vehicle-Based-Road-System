@@ -31,6 +31,7 @@ since it is visible in the browser.
 ## How it connects
 
 - `POST /api/analyze-routes` starts a job; the UI polls `GET /api/jobs/{id}` every 1.5 s and shows the backend's live stage/progress.
+- **Select origin & destination on map** (under the Analyze button) opens a picker: click once for start, once for destination, drag pins to adjust, or use browser geolocation for the start. It fills the fields with `lat,lng`, which Directions accepts directly; the results show Google's resolved address for those points.
 - Vehicle ground clearance is sent to the backend (`clearance_mm`) and also applied client-side, so switching vehicle re-scores instantly without re-analysing.
 - **Settings** (gear / status chip): backend URL and a Live ↔ Demo toggle. Demo mode uses OSRM routing with dataset sample frames and needs no backend.
 - History and settings persist in `localStorage`. **Share** copies a link with `?from=&to=&vehicle=` that prefills the planner.

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { APIProvider, Map, AdvancedMarker, InfoWindow, Polyline, ControlPosition, useMap } from '@vis.gl/react-google-maps';
+import { Map, AdvancedMarker, InfoWindow, Polyline, ControlPosition, useMap } from '@vis.gl/react-google-maps';
 import { ExternalLink } from 'lucide-react';
 
 const SEVERITY_COLOR = { High: '#ef4444', Medium: '#f59e0b', Low: '#10b981' };
@@ -87,7 +87,6 @@ export default function InteractiveMap({ routeData, focusedHazard, onSelectHazar
 
       {/* colorScheme is init-only, hence the key. DEMO_MAP_ID is Google's public id
           (needed for AdvancedMarker); create your own Map ID in Cloud Console for custom styling. */}
-      <APIProvider apiKey={mapsKey}>
         <Map
           key={darkMode ? 'dark' : 'light'}
           className="google-road-map"
@@ -173,7 +172,6 @@ export default function InteractiveMap({ routeData, focusedHazard, onSelectHazar
             </InfoWindow>
           )}
         </Map>
-      </APIProvider>
     </div>
   );
 }

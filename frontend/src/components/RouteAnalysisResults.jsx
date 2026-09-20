@@ -3,6 +3,7 @@ import { Download, Share2, ArrowRight, Check, Sparkles, Navigation, Clock, Flask
 import InteractiveMap from './InteractiveMap';
 import RiskScoreCard from './RiskScoreCard';
 import VehicleProfileCard from './VehicleProfileCard';
+import { displayPlace } from '../services/geo';
 
 export default function RouteAnalysisResults({
   routeData,
@@ -44,9 +45,9 @@ export default function RouteAnalysisResults({
             )}
           </div>
           <div className="results-breadcrumbs">
-            <span className="location-start-tag">{routeData.startLocation}</span>
+            <span className="location-start-tag" title={routeData.startLocation}>{routeData.originAddress || displayPlace(routeData.startLocation)}</span>
             <ArrowRight size={14} className="breadcrumb-arrow" />
-            <span className="location-dest-tag">{routeData.destination}</span>
+            <span className="location-dest-tag" title={routeData.destination}>{routeData.destinationAddress || displayPlace(routeData.destination)}</span>
           </div>
           <div className="results-timestamp">
             {routeData.isSample ? 'Example route — ' : 'Analyzed on '}{routeData.timestamp}

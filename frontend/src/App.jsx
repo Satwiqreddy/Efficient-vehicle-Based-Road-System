@@ -9,6 +9,8 @@ import HistoryModal from './components/HistoryModal';
 import ReportModal from './components/ReportModal';
 import SettingsModal from './components/SettingsModal';
 import Footer from './components/Footer';
+import MapPickerModal from './components/MapPickerModal';
+import { APIProvider } from '@vis.gl/react-google-maps';
 
 import { VEHICLE_DATABASE, DEFAULT_VEHICLE } from './data/vehicles';
 import { SAMPLE_ANALYSIS } from './data/sampleRouteData';
@@ -65,6 +67,7 @@ function App() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
@@ -176,7 +179,7 @@ function App() {
     document.getElementById('results-view')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  return (
+  const page = (
     <div className="app-root">
       <Navbar
         activeTab={activeTab}
@@ -206,6 +209,8 @@ function App() {
               analysisError={analysisError}
               liveMode={apiConfig.useLiveApi}
               backendOnline={backendOnline}
+              onOpenPicker={() => setIsPickerOpen(true)}
+              canPick={!!mapsKey}
             />
 
             <RouteAnalysisResults
@@ -259,8 +264,26 @@ function App() {
         backendOnline={backendOnline}
         onTestConnection={pingBackend}
       />
+
+      <MapPickerModal
+        isOpen={isPickerOpen && !!mapsKey}
+        onClose={() => setIsPickerOpen(false)}
+        onConfirm={(from, to) => {
+          setStartLocation(from);
+          setDestination(to);
+          setIsPickerOpen(false);
+        }}
+        startLocation={startLocation}
+        destination={destination}
+        darkMode={darkMode}
+        initialCenter={routeData?.startCoord ? { lat: routeData.startCoord[0], lng: routeData.startCoord[1] } : null}
+      />
     </div>
   );
+
+  // One Maps loader for the whole app (results map + picker). Without a key the page
+  // still works; the map panels show how to add one.
+  return mapsKey ? <APIProvider apiKey={mapsKey}>{page}</APIProvider> : page;
 }
 
 export default App;

@@ -76,6 +76,8 @@ function transformBackendResult(data, base) {
   return {
     alternativeRoutes,
     recommendedRouteIndex: data.recommended_route_index || 0,
+    originAddress: data.origin_address || '',
+    destinationAddress: data.destination_address || '',
     analysisTimeSec: data.analysis_time_sec,
     startCoord: alternativeRoutes[0]?.start_coord,
     endCoord: alternativeRoutes[0]?.end_coord,
