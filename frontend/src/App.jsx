@@ -218,6 +218,9 @@ function App() {
               setSelectedVehicle={setSelectedVehicle}
               customClearance={customClearance}
               setCustomClearance={setCustomClearance}
+              historyItems={historyItems}
+              onOpenHistoryItem={handleSelectHistoryRoute}
+              onOpenHistory={() => setIsHistoryModalOpen(true)}
               onAnalyze={handleAnalyzeRoute}
               isAnalyzing={isAnalyzing}
               progress={progress}

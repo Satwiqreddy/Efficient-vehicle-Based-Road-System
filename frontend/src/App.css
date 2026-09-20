@@ -3327,3 +3327,39 @@ input:checked + .slider:before {
 .measure-input-row label { font-weight: 600; color: var(--text-main); }
 .measure-input { width: 90px; padding: 6px 8px; text-align: right; font-variant-numeric: tabular-nums; }
 .measure-catalogue { color: var(--text-muted); font-size: 0.76rem; margin-left: auto; }
+
+/* recent / example routes under the intro */
+.hero-left-col { display: flex; flex-direction: column; gap: 16px; }
+.recent-routes {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.recent-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.recent-title { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+.recent-link { background: none; border: none; color: var(--color-accent-text); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.recent-link:hover { text-decoration: underline; }
+.recent-list { list-style: none; display: flex; flex-direction: column; }
+.recent-list li + li { border-top: 1px solid var(--border-color); }
+.recent-row {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 9px 4px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  align-items: center;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  color: var(--text-body);
+}
+.recent-row:hover { background: var(--bg-subtle); }
+.recent-path { display: flex; align-items: center; gap: 6px; font-size: 0.86rem; font-weight: 600; color: var(--text-main); min-width: 0; }
+.recent-path > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-path svg { flex: 0 0 auto; color: var(--text-subtle); }
+.recent-meta { display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+.recent-sub { grid-column: 1 / -1; font-size: 0.74rem; color: var(--text-subtle); }
+.recent-foot { font-size: 0.74rem; color: var(--text-subtle); margin-top: 6px; }

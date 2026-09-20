@@ -3,6 +3,7 @@ import { Car, MapPin, ArrowRightLeft, MapPinned, ChevronDown } from 'lucide-reac
 import { VEHICLE_DATABASE } from '../data/vehicles';
 import { PRESET_ROUTES } from '../data/sampleRouteData';
 import LoadingProverbs from './LoadingProverbs';
+import RecentRoutes from './RecentRoutes';
 
 function clearanceNote(mm) {
   if (mm < 150) return 'low — tall speed breakers and deep potholes can hit the underbody';
@@ -26,7 +27,10 @@ export default function HeroSection({
   onOpenPicker,
   canPick,
   customClearance,
-  setCustomClearance
+  setCustomClearance,
+  historyItems,
+  onOpenHistoryItem,
+  onOpenHistory
 }) {
   const modified = customClearance != null;
   const catalogueMm = VEHICLE_DATABASE.find(v => v.id === selectedVehicle.id)?.groundClearance ?? selectedVehicle.groundClearance;
@@ -53,6 +57,7 @@ export default function HeroSection({
   return (
     <section className="hero-section">
       <div className="hero-grid">
+        <div className="hero-left-col">
         <div className="hero-left-content hero-intro">
           <h1 className="hero-title">Check the road <mark className="hl">before</mark> you drive it.</h1>
           <p className="hero-subtitle">
@@ -66,6 +71,14 @@ export default function HeroSection({
             <li><span>2</span><div>A <strong>YOLOv8 detector</strong> trained on Indian roads scans a Street View frame <strong>every 10 m</strong>.</div></li>
             <li><span>3</span><div>Each hazard is scored against your vehicle's ground clearance; the <strong>safest route is recommended</strong>.</div></li>
           </ol>
+        </div>
+
+        <RecentRoutes
+          historyItems={historyItems}
+          onOpenHistoryItem={onOpenHistoryItem}
+          onPreset={handleSelectPreset}
+          onOpenHistory={onOpenHistory}
+        />
         </div>
 
         <div className="hero-right-card-wrapper">
