@@ -91,7 +91,7 @@ export default function ReportModal({ isOpen, onClose, routeData, vehicle }) {
               </div>
               <div className="report-grid-cell">
                 <span className="report-cell-label">Assessed Vehicle:</span>
-                <span className="report-cell-value">{vehicle.name} ({vehicle.groundClearance} mm Clearance)</span>
+                <span className="report-cell-value">{vehicle.name} ({vehicle.groundClearance} mm clearance{vehicle.measured ? ', owner-measured' : ''})</span>
               </div>
               <div className="report-grid-cell">
                 <span className="report-cell-label">Overall Risk Score:</span>

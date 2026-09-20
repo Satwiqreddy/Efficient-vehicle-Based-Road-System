@@ -41,7 +41,15 @@ function App() {
   // Form state
   const [startLocation, setStartLocation] = useState(urlParams.get('from') || SAMPLE_ANALYSIS.startLocation);
   const [destination, setDestination] = useState(urlParams.get('to') || SAMPLE_ANALYSIS.destination);
-  const [selectedVehicle, setSelectedVehicle] = useState(vehicleFromUrl || DEFAULT_VEHICLE);
+  const [baseVehicle, setSelectedVehicle] = useState(vehicleFromUrl || DEFAULT_VEHICLE);
+  // Modified / worn cars: the owner measures clearance and it overrides the catalogue value
+  const [customClearance, setCustomClearance] = useState(() => {
+    const mm = parseInt(urlParams.get('mm'), 10);
+    return mm >= 40 && mm <= 400 ? mm : loadLocal('rg_custom_mm', null);
+  });
+  const selectedVehicle = useMemo(() => customClearance
+    ? { ...baseVehicle, groundClearance: customClearance, measured: true }
+    : baseVehicle, [baseVehicle, customClearance]);
 
   // Analysis state: raw result (vehicle-agnostic) + which alternative is selected.
   // Everything shown is derived from these + the vehicle, so switching vehicle is instant.
@@ -77,6 +85,7 @@ function App() {
 
   useEffect(() => { saveLocal('rg_history', historyItems); }, [historyItems]);
   useEffect(() => { saveLocal('rg_settings', apiConfig); }, [apiConfig]);
+  useEffect(() => { saveLocal('rg_custom_mm', customClearance); }, [customClearance]);
 
   // Backend heartbeat so the UI can say why an analysis would fail before the user waits on it
   const pingBackend = useCallback(async () => {
@@ -121,6 +130,7 @@ function App() {
         timestamp: now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
           + ', ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         vehicleId: selectedVehicle.id,
+        clearanceMm: selectedVehicle.groundClearance,
       };
 
       setAnalysis(newAnalysis);
@@ -151,6 +161,7 @@ function App() {
     const url = new URL(window.location.href);
     url.search = new URLSearchParams({
       from: routeData.startLocation, to: routeData.destination, vehicle: selectedVehicle.id,
+      ...(selectedVehicle.measured ? { mm: selectedVehicle.groundClearance } : {}),
     }).toString();
     try {
       await navigator.clipboard.writeText(url.toString());
@@ -165,7 +176,10 @@ function App() {
     setStartLocation(item.startLocation);
     setDestination(item.destination);
     const v = VEHICLE_DATABASE.find((x) => x.id === item.vehicleId);
-    if (v) setSelectedVehicle(v);
+    if (v) {
+      setSelectedVehicle(v);
+      setCustomClearance(item.clearanceMm && item.clearanceMm !== v.groundClearance ? item.clearanceMm : null);
+    }
     setAnalysis(item);
     setActiveRouteIndex(item.recommendedRouteIndex || 0);
     setFocusedHazard(null);
@@ -202,6 +216,8 @@ function App() {
               setDestination={setDestination}
               selectedVehicle={selectedVehicle}
               setSelectedVehicle={setSelectedVehicle}
+              customClearance={customClearance}
+              setCustomClearance={setCustomClearance}
               onAnalyze={handleAnalyzeRoute}
               isAnalyzing={isAnalyzing}
               progress={progress}

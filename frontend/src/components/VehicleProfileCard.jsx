@@ -28,7 +28,7 @@ export default function VehicleProfileCard({ vehicle }) {
         </div>
         <div className="vehicle-details-col">
           <div className="vehicle-name-heading">{vehicle.name}</div>
-          <div className="vehicle-spec-clearance">{vehicle.category} · ground clearance <span className="highlight-val">{mm} mm</span></div>
+          <div className="vehicle-spec-clearance">{vehicle.category} · ground clearance <span className="highlight-val">{mm} mm</span>{vehicle.measured ? ' (measured by you)' : ''}</div>
         </div>
       </div>
 

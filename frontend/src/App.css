@@ -3298,3 +3298,32 @@ input:checked + .slider:before {
 .footer-mail, .about-contact a { color: var(--color-accent-text); font-weight: 600; }
 .footer-mail:hover, .about-contact a:hover { text-decoration: underline; }
 .about-contact { font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; }
+
+/* modified-vehicle check + manual measurement */
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--text-body);
+  line-height: 1.45;
+  cursor: pointer;
+}
+.check-row input { margin-top: 3px; accent-color: var(--color-accent); flex: 0 0 auto; }
+.measure-box {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-warning-border);
+  background: var(--color-warning-soft);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.measure-title { font-weight: 600; font-size: 0.86rem; color: var(--text-main); }
+.measure-steps { padding-left: 18px; font-size: 0.8rem; color: var(--text-body); line-height: 1.5; display: flex; flex-direction: column; gap: 3px; }
+.measure-input-row { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-body); flex-wrap: wrap; }
+.measure-input-row label { font-weight: 600; color: var(--text-main); }
+.measure-input { width: 90px; padding: 6px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+.measure-catalogue { color: var(--text-muted); font-size: 0.76rem; margin-left: auto; }

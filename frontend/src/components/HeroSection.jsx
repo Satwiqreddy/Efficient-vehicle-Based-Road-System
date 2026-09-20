@@ -24,8 +24,13 @@ export default function HeroSection({
   liveMode,
   backendOnline,
   onOpenPicker,
-  canPick
+  canPick,
+  customClearance,
+  setCustomClearance
 }) {
+  const modified = customClearance != null;
+  const catalogueMm = VEHICLE_DATABASE.find(v => v.id === selectedVehicle.id)?.groundClearance ?? selectedVehicle.groundClearance;
+
   const [showPresets, setShowPresets] = useState(false);
 
   const handleSelectPreset = (preset) => {
@@ -163,8 +168,46 @@ export default function HeroSection({
                   </select>
                 </div>
                 <span className="input-helper-text">
-                  Ground clearance {selectedVehicle.groundClearance} mm: {clearanceNote(selectedVehicle.groundClearance)}.
+                  Ground clearance {selectedVehicle.groundClearance} mm{selectedVehicle.measured ? ' (your measurement)' : ''}: {clearanceNote(selectedVehicle.groundClearance)}.
                 </span>
+
+                <label className="check-row">
+                  <input
+                    type="checkbox"
+                    checked={modified}
+                    onChange={(e) => setCustomClearance(e.target.checked ? catalogueMm : null)}
+                  />
+                  <span>This car has been modified or is worn — lowered or lifted suspension, different tyres, sagging springs, usually loaded heavy</span>
+                </label>
+
+                {modified && (
+                  <div className="measure-box">
+                    <div className="measure-title">Measure the clearance yourself</div>
+                    <ol className="measure-steps">
+                      <li>Park on flat, level ground with normal load and tyre pressure.</li>
+                      <li>Find the lowest point under the car — usually the engine sump, exhaust or a suspension arm, not the bumper.</li>
+                      <li>Measure straight up from the ground to that point with a tape and enter it below.</li>
+                    </ol>
+                    <div className="measure-input-row">
+                      <label htmlFor="measured-mm">Measured clearance</label>
+                      <input
+                        id="measured-mm"
+                        type="number"
+                        className="form-input measure-input"
+                        min="40"
+                        max="400"
+                        step="1"
+                        value={customClearance}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          if (v >= 40 && v <= 400) setCustomClearance(v);
+                        }}
+                      />
+                      <span>mm</span>
+                      <span className="measure-catalogue">catalogue: {catalogueMm} mm</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {!isAnalyzing ? (
