@@ -44,7 +44,7 @@ export default function AboutView({ onBackToHome }) {
           </div>
           <h3>Google Street View Waypoint Sampling</h3>
           <p>
-            Automated polyline parsing samples real-world Street View imagery every 50 metres, extracting heading angles and field of view for high-accuracy road surface inspection.
+            Automated polyline parsing samples every Street View panorama along the road (~10 m apart), extracting heading angles and field of view for high-accuracy road surface inspection.
           </p>
         </div>
       </div>

@@ -31,7 +31,7 @@ function buildRecommendations(routeData, vehicle) {
     tips.push(<><strong>Clear road:</strong> no potholes or speed breakers were detected in the scanned frames. Drive normally.</>);
   }
 
-  tips.push(<><strong>Method:</strong> {routeData.isDemo || routeData.isSample ? 'Illustrative data — ' : ''}YOLOv8 detection on Google Street View frames sampled every 50 m, personalised for {vehicle.name} ({vehicle.groundClearance} mm clearance).</>);
+  tips.push(<><strong>Method:</strong> {routeData.isDemo || routeData.isSample ? 'Illustrative data — ' : ''}YOLOv8 detection on Google Street View frames sampled every 10 m (every panorama), personalised for {vehicle.name} ({vehicle.groundClearance} mm clearance).</>);
   return tips;
 }
 

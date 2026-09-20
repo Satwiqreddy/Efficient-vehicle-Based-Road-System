@@ -84,6 +84,11 @@ export default function DetectedHazards({ hazards, onFocusHazard, focusedHazardI
                   <div className="hazard-type-title">
                     <span className="hazard-type-icon"><AlertTriangle size={16} /></span>
                     <span className="hazard-type-text">{hazard.type}</span>
+                    {hazard.sightings > 1 && (
+                      <span className="sightings-chip" title="Detected in this many consecutive Street View frames">
+                        {hazard.sightings}× seen
+                      </span>
+                    )}
                   </div>
 
                   <div className="hazard-meta-grid">

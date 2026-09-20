@@ -66,7 +66,7 @@ Road images go through a pipeline:
 | Purpose | Tool Used |
 |---|---|
 | Route & alternatives | Google Maps Directions API (`alternatives=true`) |
-| Road imagery | Google Street View Static API, sampled every 50 m |
+| Road imagery | Google Street View Static API, every panorama along the route (~10 m spacing), fetched in parallel |
 | Obstacle detection | YOLOv8 (custom pothole + speed-breaker weights in `hazard_detection/models/`) |
 | Risk scoring | `hazard_detection/src/risk_engine.py`, personalised by ground clearance |
 | Backend | Python, FastAPI (`api_server.py`) — async jobs with live progress |

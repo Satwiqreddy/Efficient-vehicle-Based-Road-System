@@ -1331,6 +1331,17 @@
   color: var(--color-warning);
 }
 
+.sightings-chip {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-blue-text);
+  background: var(--color-blue-soft);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
 .hazard-type-text {
   font-size: 0.98rem;
   font-weight: 800;

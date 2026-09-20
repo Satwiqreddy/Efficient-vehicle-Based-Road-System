@@ -29,7 +29,7 @@ import polyline
 
 sys.path.append(str(Path(__file__).resolve().parent))
 from get_alternative_routes import get_alternative_routes
-from route_extraction_distance_sampling import decode_polyline_by_distance
+from route_extraction_distance_sampling import sample_points_by_distance, haversine_meters
 from image_collection.streetview_fetcher import build_pano_chain
 from image_collection_retry import download_pano_chain_with_retries
 
@@ -64,8 +64,9 @@ class RouteRequest(BaseModel):
     destination: str
     vehicle: str = "Honda City"
     clearance_mm: Optional[float] = None  # frontend sends exact value; overrides CSV lookup
-    meters: int = 50
+    meters: int = 10      # Street View panos sit ~10 m apart; this sees every one of them
     conf: float = 0.25
+    merge_m: int = 25     # same-type detections closer than this (consecutive frames) are one hazard
 
 
 @app.get("/api/status")
@@ -113,15 +114,17 @@ def analyze_routes(req: RouteRequest, report) -> dict:
         slice_start = 5 + (90 * i) / n_routes
         slice_len = 90 / n_routes
 
-        polyline_str = r["polyline"]
-        decoded_coords = polyline.decode(polyline_str)
-        route_polyline = [[round(lat, 5), round(lng, 5)] for lat, lng in decoded_coords]
+        # full-detail step geometry (not the simplified overview) so 10 m samples stay on the road
+        route_points = r.get("points") or polyline.decode(r["polyline"])
+        route_polyline = [[round(lat, 5), round(lng, 5)] for lat, lng in route_points]
 
-        waypoints = decode_polyline_by_distance(polyline_str, meters=req.meters)
+        waypoints = sample_points_by_distance(route_points, meters=req.meters)
         waypoints_as_dicts = [{"lat": lat, "lng": lng} for lat, lng in waypoints]
 
-        report(1, f"{route_tag} · locating {len(waypoints)} Street View panoramas...", slice_start)
-        pano_chain = build_pano_chain(waypoints_as_dicts)
+        report(1, f"{route_tag} · locating panoramas at {len(waypoints)} points...", slice_start)
+        # radius 30: with 10 m sampling a pano is always within reach if the road has coverage,
+        # and a small radius stops snapping onto a parallel street
+        pano_chain = build_pano_chain(waypoints_as_dicts, radius=30)
 
         images_dir = f"output/route_{i}_images"
         images = download_pano_chain_with_retries(
@@ -150,16 +153,22 @@ def analyze_routes(req: RouteRequest, report) -> dict:
 
             wp_lat = img.get("lat")
             wp_lng = img.get("lng")
-            fraction = (img_idx + 1) / (len(images) + 1)
-            offset_km = round(r["distance_km"] * fraction, 2)
+            offset_km = round(r["distance_km"] * (img_idx + 1) / (len(images) + 1), 2)
+
+            cv_img = cv2.imread(image_path)
+            if cv_img is None:
+                continue
 
             detections = detect_hazards(image_path, conf_threshold=req.conf)
+            # Camera pitch is -10°, so the horizon sits ~32% down the frame; a box whose
+            # centre is in the top 40% is a roof, tree or sky, not road surface.
+            road_y = 0.40 * cv_img.shape[0]
+            detections = [d for d in detections if (d["bbox"][1] + d["bbox"][3]) / 2 >= road_y]
             if not detections:
                 continue
 
             # One annotated frame per image with EVERY box drawn, saved under each
             # hazard-type folder it belongs to (a frame can hold a pothole and a hump).
-            cv_img = cv2.imread(image_path)
             out_name = Path(image_path).name
             frame_dirs = set()
 
@@ -179,16 +188,15 @@ def analyze_routes(req: RouteRequest, report) -> dict:
                 sub_dir = "potholes" if h_type == "pothole" else "speedbreakers"
                 frame_dirs.add(sub_dir)
 
-                if cv_img is not None:
-                    x1, y1, x2, y2 = map(int, det["bbox"])
-                    color = (0, 0, 255) if h_type == "pothole" else (0, 165, 255)
-                    cv2.rectangle(cv_img, (x1, y1), (x2, y2), color, 3)
-                    r_class = risk_engine.risk_class(final_risk)
-                    label = f"{h_type.upper()} - {r_class} ({final_risk:.2f})"
-                    (tw, _), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
-                    tx = max(0, min(x1, cv_img.shape[1] - tw - 4))  # keep label inside frame
-                    cv2.putText(cv_img, label, (tx, max(y1 - 10, 20)),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                x1, y1, x2, y2 = map(int, det["bbox"])
+                color = (0, 0, 255) if h_type == "pothole" else (0, 165, 255)
+                cv2.rectangle(cv_img, (x1, y1), (x2, y2), color, 3)
+                r_class = risk_engine.risk_class(final_risk)
+                label = f"{h_type.upper()} - {r_class} ({final_risk:.2f})"
+                (tw, _), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+                tx = max(0, min(x1, cv_img.shape[1] - tw - 4))  # keep label inside frame
+                cv2.putText(cv_img, label, (tx, max(y1 - 10, 20)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
                 sev = "Low"
                 if final_risk >= 0.27:
@@ -205,15 +213,19 @@ def analyze_routes(req: RouteRequest, report) -> dict:
                     "baseRisk": int(base_risk * 100),
                     "adjustedRisk": int(final_risk * 280),  # Scaled to 0-100 gauge
                     "locationOffsetKm": offset_km,
-                    "coords": [wp_lat, wp_lng] if wp_lat and wp_lng else route_polyline[min(len(route_polyline)-1, int(fraction * len(route_polyline)))],
+                    "coords": [wp_lat, wp_lng],
                     "bbox": det["bbox"],
                     "imageUrl": f"/output/route_{i}_hazards/{sub_dir}/{out_name}",
                     "description": f"Verified {h_type} detected with {int(conf*100)}% YOLOv8 model confidence."
                 })
 
-            if cv_img is not None:
-                for sub_dir in frame_dirs:
-                    cv2.imwrite(str(hazard_output_dir / sub_dir / out_name), cv_img)
+            for sub_dir in frame_dirs:
+                cv2.imwrite(str(hazard_output_dir / sub_dir / out_name), cv_img)
+
+        hazards_list = merge_sightings(hazards_list, req.merge_m)
+        risk_scores = [h["adjustedRisk"] / 280 for h in hazards_list]
+        pothole_count = sum(h["category"] == "pothole" for h in hazards_list)
+        speedbreaker_count = len(hazards_list) - pothole_count
 
         avg_risk = sum(risk_scores) / len(risk_scores) if risk_scores else 0.0
         max_risk = max(risk_scores) if risk_scores else 0.0
@@ -252,6 +264,32 @@ def analyze_routes(req: RouteRequest, report) -> dict:
         "analysis_time_sec": round(time.time() - t_start, 1),
         "routes": evaluated_routes
     }
+
+
+def merge_sightings(hazards: list[dict], merge_m: float) -> list[dict]:
+    """With 10 m frame spacing the same pothole is seen in 2-3 consecutive frames,
+    each tagged with its own camera position. Collapse same-type detections within
+    merge_m of each other into one hazard (best-confidence sighting wins, and the
+    sighting count is kept -- a hazard seen 3 times is more credible than one seen once).
+    ponytail: coords are the camera, not the hazard; project from bbox if precision matters."""
+    merged: list[dict] = []
+    for h in hazards:  # already in route order
+        for m in merged:
+            if m["category"] == h["category"] and                haversine_meters(m["coords"][0], m["coords"][1], h["coords"][0], h["coords"][1]) <= merge_m:
+                if h["confidence"] > m["confidence"]:
+                    h["sightings"] = m["sightings"] + 1
+                    merged[merged.index(m)] = h
+                else:
+                    m["sightings"] += 1
+                break
+        else:
+            h["sightings"] = 1
+            merged.append(h)
+    for n, h in enumerate(merged, 1):
+        h["id"] = h["id"].rsplit("_", 1)[0] + f"_{n}"
+        if h["sightings"] > 1:
+            h["description"] += f" Seen in {h['sightings']} consecutive frames."
+    return merged
 
 
 def _run_job(job_id: str, req: RouteRequest):

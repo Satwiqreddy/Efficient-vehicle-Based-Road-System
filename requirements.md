@@ -27,7 +27,7 @@ Existing navigation systems (e.g., Google Maps) optimize routes for distance or 
 ### FR-01 — Route Extraction
 - The system shall accept a source and destination as input.
 - The system shall retrieve candidate routes using the Google Maps Directions API.
-- The system shall decode the route polyline and divide it into segments of approximately 50 metres each.
+- The system shall decode the route polyline and divide it into segments of approximately 10 metres each (one per Street View panorama).
 - Each segment shall be stored with a unique ID and its start/end coordinates.
 
 ### FR-02 — Road Image Collection

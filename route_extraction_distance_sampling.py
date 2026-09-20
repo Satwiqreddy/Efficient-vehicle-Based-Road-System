@@ -29,13 +29,16 @@ def haversine_meters(lat1, lng1, lat2, lng2):
 
 
 def decode_polyline_by_distance(polyline_str, meters=30):
-    """
-    Decodes the polyline and samples one point approximately every
-    `meters` of real distance along the route, regardless of how
-    densely Google encoded that stretch of road.
-    """
-    all_points = polyline.decode(polyline_str)
+    """Decodes the polyline, then samples it every `meters` (see sample_points_by_distance)."""
+    return sample_points_by_distance(polyline.decode(polyline_str), meters)
 
+
+def sample_points_by_distance(all_points, meters=30):
+    """
+    Walks a [(lat, lng), ...] path and emits one point approximately every
+    `meters` of real distance -- interpolating along long straight segments,
+    so spacing is consistent regardless of how densely the path is encoded.
+    """
     if not all_points:
         return []
 
@@ -44,9 +47,12 @@ def decode_polyline_by_distance(polyline_str, meters=30):
 
     for lat, lng in all_points[1:]:
         distance = haversine_meters(last_lat, last_lng, lat, lng)
-        if distance >= meters:
-            sampled.append((lat, lng))
-            last_lat, last_lng = lat, lng
+        # long segment: drop intermediate points along it so nothing is skipped
+        while distance >= meters:
+            t = meters / distance
+            last_lat, last_lng = last_lat + (lat - last_lat) * t, last_lng + (lng - last_lng) * t
+            sampled.append((last_lat, last_lng))
+            distance = haversine_meters(last_lat, last_lng, lat, lng)
 
     # Always include the actual endpoint, even if it's closer than `meters`
     # to the last sampled point -- otherwise the route could end short.

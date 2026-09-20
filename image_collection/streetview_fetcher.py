@@ -1,6 +1,7 @@
 import os
 import json
 import math
+from concurrent.futures import ThreadPoolExecutor
 import requests
 import cv2
 import numpy as np
@@ -121,14 +122,18 @@ def download_image(pano_id=None, lat=None, lng=None,
     return None
 
 # ── BUILD PANO CHAIN ──────────────────────────────────────────────────────
-def build_pano_chain(waypoints):
+def build_pano_chain(waypoints, radius=100, workers=8):
     """
     Build chain of connected panoramas from origin to destination.
     Like clicking forward in Google Street View.
+    Metadata lookups are free and independent, so they run in parallel.
     """
     print("Building panorama chain...\n")
     pano_chain    = []
     visited_panos = set()
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        metas = list(pool.map(lambda wp: get_pano_metadata(wp["lat"], wp["lng"], radius=radius), waypoints))
 
     for i, wp in enumerate(waypoints):
         lat = wp["lat"]
@@ -144,8 +149,7 @@ def build_pano_chain(waypoints):
         else:
             heading = pano_chain[-1]["heading"] if pano_chain else 0
 
-        # Get panorama metadata at this waypoint
-        meta = get_pano_metadata(lat, lng, radius=100)
+        meta = metas[i]
         if meta.get("status") != "OK":
             print(f"  ⚠ No pano at waypoint {i+1} — skipping")
             continue

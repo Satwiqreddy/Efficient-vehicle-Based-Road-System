@@ -47,8 +47,6 @@ export async function analyzeRouteViaBackend(origin, destination, vehicle, { bac
       destination,
       vehicle: vehicle.name,
       clearance_mm: vehicle.groundClearance,
-      meters: 50,
-      conf: 0.25,
     }),
   }));
 
