@@ -3,7 +3,6 @@ import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
 import RouteAnalysisResults from './components/RouteAnalysisResults';
 import DetectedHazards from './components/DetectedHazards';
-import HowItWorks from './components/HowItWorks';
 import AboutView from './components/AboutView';
 import HistoryModal from './components/HistoryModal';
 import ReportModal from './components/ReportModal';
@@ -233,8 +232,6 @@ function App() {
               onFocusHazard={focusHazardOnMap}
               focusedHazardId={focusedHazard?.id}
             />
-
-            <HowItWorks />
           </>
         )}
       </main>

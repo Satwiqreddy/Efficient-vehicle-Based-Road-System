@@ -216,7 +216,7 @@ def analyze_routes(req: RouteRequest, report) -> dict:
                     "coords": [wp_lat, wp_lng],
                     "bbox": det["bbox"],
                     "imageUrl": f"/output/route_{i}_hazards/{sub_dir}/{out_name}",
-                    "description": f"Verified {h_type} detected with {int(conf*100)}% YOLOv8 model confidence."
+                    "description": f"{h_type.capitalize()} detected at {int(conf*100)}% confidence."
                 })
 
             for sub_dir in frame_dirs:

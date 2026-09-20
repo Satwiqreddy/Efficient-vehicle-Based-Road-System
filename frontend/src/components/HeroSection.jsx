@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
-import { Car, MapPin, Search, Sparkles, Navigation2, ArrowRightLeft, MapPinned } from 'lucide-react';
+import { Car, MapPin, ArrowRightLeft, MapPinned, ChevronDown } from 'lucide-react';
 import { VEHICLE_DATABASE } from '../data/vehicles';
 import { PRESET_ROUTES } from '../data/sampleRouteData';
 import LoadingProverbs from './LoadingProverbs';
-import GroundClearanceGuide from './GroundClearanceGuide';
 
-export default function HeroSection({ 
-  startLocation, 
-  setStartLocation, 
-  destination, 
-  setDestination, 
-  selectedVehicle, 
-  setSelectedVehicle, 
-  onAnalyze, 
+function clearanceNote(mm) {
+  if (mm < 150) return 'low — tall speed breakers and deep potholes can hit the underbody';
+  if (mm <= 180) return 'typical for a city car — take unmarked humps slowly';
+  return 'high — most road hazards clear comfortably';
+}
+
+export default function HeroSection({
+  startLocation,
+  setStartLocation,
+  destination,
+  setDestination,
+  selectedVehicle,
+  setSelectedVehicle,
+  onAnalyze,
   isAnalyzing,
   progress,
   analysisError,
@@ -30,54 +35,40 @@ export default function HeroSection({
   };
 
   const handleSwapLocations = () => {
-    const temp = startLocation;
     setStartLocation(destination);
-    setDestination(temp);
+    setDestination(startLocation);
   };
+
+  const groups = [
+    ['Hatchbacks & sedans', (v) => v.category === 'Sedan' || v.category === 'Hatchback'],
+    ['SUVs', (v) => v.category === 'SUV'],
+    ['MPVs & sports', (v) => ['MPV', 'Sports', 'Modified'].includes(v.category)],
+  ];
 
   return (
     <section className="hero-section">
       <div className="hero-grid">
-        {/* Left Side: Headlines & Ground Clearance Guide */}
         <div className="hero-left-content">
-          <div className="hero-badge-live">
-            <span className="live-indicator-dot"></span>
-            <span>Intelligent Road Hazard &amp; Safety Platform</span>
-          </div>
-
-          <h1 className="hero-title">
-            Know the Road <br />
-            <span className="highlight-green">Before You Drive.</span>
-          </h1>
-
+          <h1 className="hero-title">Check the road before you drive it.</h1>
           <p className="hero-subtitle">
-            Street-level computer vision hazard detection personalized for your vehicle's exact ground clearance.
+            Enter two places. We fetch every driving route between them, look at each Street View
+            frame along the way for potholes and speed breakers, and rate the routes for your car's
+            ground clearance.
           </p>
 
-          <div className="hero-slogan-card">
-            <Sparkles size={16} className="slogan-icon" />
-            <span>AI Road Vision • YOLOv8 Neural Network • Zero Undercarriage Damage</span>
-          </div>
-
-          {/* Ground Clearance Reference Card */}
-          <GroundClearanceGuide selectedVehicle={selectedVehicle} />
+          <ol className="how-list">
+            <li><span>1</span> Routes come from Google Directions, including the alternatives.</li>
+            <li><span>2</span> A YOLOv8 detector trained on Indian roads scans a Street View frame every 10 m.</li>
+            <li><span>3</span> Each hazard is scored against your vehicle's ground clearance; the safest route is recommended.</li>
+          </ol>
         </div>
 
-        {/* Right Side: "Plan Your Route" Card */}
         <div className="hero-right-card-wrapper">
           <div className="plan-route-card">
             <div className="card-header-row">
-              <div>
-                <h2 className="card-title">Plan Your Route</h2>
-                <span className="card-subtitle">Scan for potholes &amp; speed breakers</span>
-              </div>
-              <button 
-                type="button"
-                className="preset-pill-btn"
-                onClick={() => setShowPresets(!showPresets)}
-                title="Choose sample routes"
-              >
-                Presets ▾
+              <h2 className="card-title">Plan a route</h2>
+              <button type="button" className="preset-pill-btn" onClick={() => setShowPresets(!showPresets)}>
+                Examples <ChevronDown size={14} />
               </button>
             </div>
 
@@ -85,15 +76,8 @@ export default function HeroSection({
               <>
               <div className="presets-backdrop" onClick={() => setShowPresets(false)} />
               <div className="presets-dropdown-menu">
-                <div className="presets-dropdown-title">Select Preset Route</div>
                 {PRESET_ROUTES.map((p, idx) => (
-                  <button 
-                    key={idx}
-                    type="button" 
-                    className="preset-option-btn"
-                    onClick={() => handleSelectPreset(p)}
-                  >
-                    <Navigation2 size={14} className="preset-icon" />
+                  <button key={idx} type="button" className="preset-option-btn" onClick={() => handleSelectPreset(p)}>
                     <div>
                       <div className="preset-name">{p.start} → {p.destination}</div>
                       <div className="preset-meta">{p.distanceKm} km</div>
@@ -104,81 +88,64 @@ export default function HeroSection({
               </>
             )}
 
-            <form 
-              className="route-form" 
-              onSubmit={(e) => {
-                e.preventDefault();
-                onAnalyze();
-              }}
-            >
-              {/* Start Location Input */}
+            <form className="route-form" onSubmit={(e) => { e.preventDefault(); onAnalyze(); }}>
               <div className="form-group">
                 <div className="label-with-action">
-                  <label className="form-label">
-                    <span className="location-pin-icon pin-green">
-                      <MapPin size={15} />
-                    </span>
-                    Start Location
+                  <label className="form-label" htmlFor="start-input">
+                    <span className="location-pin-icon pin-green"><MapPin size={15} /></span>
+                    From
                   </label>
-                  <button 
-                    type="button" 
-                    className="swap-btn-text" 
-                    onClick={handleSwapLocations}
-                    title="Swap start and destination"
-                  >
+                  <button type="button" className="swap-btn-text" onClick={handleSwapLocations} title="Swap">
                     <ArrowRightLeft size={13} />
                     <span>Swap</span>
                   </button>
                 </div>
-                <div className="input-with-icon">
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={startLocation}
-                    onChange={(e) => setStartLocation(e.target.value)}
-                    placeholder="Address, landmark, or lat,lng from the map picker"
-                    required
-                  />
-                  <Search size={16} className="input-search-icon" />
-                </div>
+                <input
+                  id="start-input"
+                  type="text"
+                  className="form-input"
+                  value={startLocation}
+                  onChange={(e) => setStartLocation(e.target.value)}
+                  placeholder="Place, landmark, or lat,lng"
+                  required
+                />
               </div>
 
-              {/* Destination Input */}
               <div className="form-group">
-                <label className="form-label">
-                  <span className="location-pin-icon pin-red">
-                    <MapPin size={15} />
-                  </span>
-                  Destination
+                <label className="form-label" htmlFor="dest-input">
+                  <span className="location-pin-icon pin-red"><MapPin size={15} /></span>
+                  To
                 </label>
-                <div className="input-with-icon">
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                    placeholder="Address, landmark, or lat,lng"
-                    required
-                  />
-                  <Search size={16} className="input-search-icon" />
-                </div>
+                <input
+                  id="dest-input"
+                  type="text"
+                  className="form-input"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  placeholder="Place, landmark, or lat,lng"
+                  required
+                />
               </div>
 
-              {/* Select Your Vehicle */}
+              <button
+                type="button"
+                className="btn-pick-on-map"
+                onClick={onOpenPicker}
+                disabled={!canPick}
+                title={canPick ? 'Choose both points by clicking on a map' : 'Needs the Google Maps key (see Settings)'}
+              >
+                <MapPinned size={16} />
+                <span>Pick points on a map instead</span>
+              </button>
+
               <div className="form-group">
-                <div className="label-with-action">
-                  <label className="form-label">
-                    <span className="location-pin-icon pin-blue">
-                      <Car size={15} />
-                    </span>
-                    Select Your Vehicle
-                  </label>
-                  <span className="vehicle-gc-badge">
-                    {selectedVehicle.groundClearance} mm Clearance
-                  </span>
-                </div>
+                <label className="form-label" htmlFor="vehicle-select">
+                  <span className="location-pin-icon pin-blue"><Car size={15} /></span>
+                  Vehicle
+                </label>
                 <div className="select-wrapper">
                   <select
+                    id="vehicle-select"
                     className="form-select"
                     value={selectedVehicle.id}
                     onChange={(e) => {
@@ -186,67 +153,37 @@ export default function HeroSection({
                       if (found) setSelectedVehicle(found);
                     }}
                   >
-                    <optgroup label="Popular Indian Hatchbacks & Sedans">
-                      {VEHICLE_DATABASE.filter(v => v.category === 'Sedan' || v.category === 'Hatchback').map(v => (
-                        <option key={v.id} value={v.id}>
-                          {v.name} ({v.groundClearance} mm)
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Compact & Full SUVs">
-                      {VEHICLE_DATABASE.filter(v => v.category === 'SUV').map(v => (
-                        <option key={v.id} value={v.id}>
-                          {v.name} ({v.groundClearance} mm)
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="MPVs & Performance Cars">
-                      {VEHICLE_DATABASE.filter(v => v.category === 'MPV' || v.category === 'Sports' || v.category === 'Modified').map(v => (
-                        <option key={v.id} value={v.id}>
-                          {v.name} ({v.groundClearance} mm)
-                        </option>
-                      ))}
-                    </optgroup>
+                    {groups.map(([label, test]) => (
+                      <optgroup key={label} label={label}>
+                        {VEHICLE_DATABASE.filter(test).map(v => (
+                          <option key={v.id} value={v.id}>{v.name} — {v.groundClearance} mm</option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
+                <span className="input-helper-text">
+                  Ground clearance {selectedVehicle.groundClearance} mm: {clearanceNote(selectedVehicle.groundClearance)}.
+                </span>
               </div>
 
-              {/* When NOT analyzing: Show Analyze CTA Button */}
               {!isAnalyzing ? (
                 <>
-                  <button 
-                    type="submit" 
-                    className="btn-analyze-route"
-                    disabled={liveMode && backendOnline === false}
-                  >
-                    <Search size={18} />
-                    <span>Analyze Route with AI</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-pick-on-map"
-                    onClick={onOpenPicker}
-                    disabled={!canPick}
-                    title={canPick ? 'Choose start and destination by clicking on a map' : 'Needs the Google Maps key (see Settings / backend .env)'}
-                  >
-                    <MapPinned size={17} />
-                    <span>Select origin &amp; destination on map</span>
+                  <button type="submit" className="btn-analyze-route" disabled={liveMode && backendOnline === false}>
+                    Analyze route
                   </button>
                   <div className={`form-subtext ${analysisError ? 'form-subtext-error' : ''}`}>
                     {analysisError
                       ? analysisError
                       : liveMode
                         ? (backendOnline === false
-                            ? 'Backend offline — start `python api_server.py` or switch to Demo mode in Settings.'
-                            : 'Live: Google Street View imagery scanned by YOLOv8 — typically 1–5 min per route set.')
-                        : 'Demo mode: OSRM routing with dataset sample frames. Switch to Live in Settings for real detection.'}
+                            ? 'The analysis server is not running. Start it with `python api_server.py`, or switch to demo mode in Settings.'
+                            : 'Usually 1–3 minutes per route set; longer routes take longer.')
+                        : 'Demo mode: routes and hazards are illustrative. Switch to live in Settings for real detection.'}
                   </div>
                 </>
               ) : (
-                <LoadingProverbs 
-                  selectedVehicle={selectedVehicle} 
-                  progress={progress} 
-                />
+                <LoadingProverbs selectedVehicle={selectedVehicle} progress={progress} />
               )}
             </form>
           </div>

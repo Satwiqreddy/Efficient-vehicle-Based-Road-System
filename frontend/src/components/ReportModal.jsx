@@ -47,12 +47,12 @@ export default function ReportModal({ isOpen, onClose, routeData, vehicle }) {
         <div className="modal-header-row no-print">
           <div className="modal-title-wrap">
             <Shield size={20} className="text-success" />
-            <h3 className="modal-title">RoadGuard Assessment Report</h3>
+            <h3 className="modal-title">Report</h3>
           </div>
           <div className="modal-actions-inline">
             <button type="button" className="btn-action-primary btn-sm" onClick={() => window.print()}>
               <Printer size={15} />
-              <span>Print / Save as PDF</span>
+              <span>Print or save as PDF</span>
             </button>
             <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
               <X size={18} />
@@ -64,7 +64,7 @@ export default function ReportModal({ isOpen, onClose, routeData, vehicle }) {
           <div className="report-doc-header">
             <div className="report-brand">
               <h2>RoadGuard</h2>
-              <p>Safer Roads • Smarter Journeys | AI Road Hazard Assessment Report</p>
+              <p>Route hazard report</p>
             </div>
             <div className="report-doc-meta">
               <div><strong>Date:</strong> {routeData.timestamp}</div>
@@ -75,7 +75,7 @@ export default function ReportModal({ isOpen, onClose, routeData, vehicle }) {
           <hr className="report-divider" />
 
           <div className="report-section">
-            <h4 className="report-section-title">1. Route &amp; Vehicle Summary</h4>
+            <h4 className="report-section-title">1. Route and vehicle</h4>
             <div className="report-table-grid">
               <div className="report-grid-cell">
                 <span className="report-cell-label">Start Origin:</span>
@@ -105,7 +105,7 @@ export default function ReportModal({ isOpen, onClose, routeData, vehicle }) {
           </div>
 
           <div className="report-section">
-            <h4 className="report-section-title">2. Detected Road Hazards Breakdown</h4>
+            <h4 className="report-section-title">2. Hazards</h4>
             {routeData.hazards?.length ? (
               <table className="report-data-table">
                 <thead>
@@ -113,8 +113,8 @@ export default function ReportModal({ isOpen, onClose, routeData, vehicle }) {
                     <th>#</th>
                     <th>Hazard Type</th>
                     <th>Severity</th>
-                    <th>AI Confidence</th>
-                    <th>Impact Score</th>
+                    <th>Confidence</th>
+                    <th>Risk</th>
                     <th>Offset</th>
                     <th>Notes</th>
                   </tr>
@@ -142,7 +142,7 @@ export default function ReportModal({ isOpen, onClose, routeData, vehicle }) {
           </div>
 
           <div className="report-section report-recommendations">
-            <h4 className="report-section-title">3. Safety Recommendations</h4>
+            <h4 className="report-section-title">3. Advice</h4>
             <ul>
               {buildRecommendations(routeData, vehicle).map((tip, i) => <li key={i}>{tip}</li>)}
             </ul>

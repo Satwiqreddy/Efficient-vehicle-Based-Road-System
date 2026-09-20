@@ -37,7 +37,7 @@ function SettingsForm({ onClose, apiConfig, setApiConfig, backendOnline, onTestC
         <div className="modal-header-row">
           <div className="modal-title-wrap">
             <Settings size={20} className="text-primary" />
-            <h3 className="modal-title">Settings &amp; Backend Connection</h3>
+            <h3 className="modal-title">Settings</h3>
           </div>
           <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
             <X size={18} />
@@ -47,8 +47,8 @@ function SettingsForm({ onClose, apiConfig, setApiConfig, backendOnline, onTestC
         <form onSubmit={handleSave} className="modal-form-body">
           <div className="toggle-row-item">
             <div className="toggle-text">
-              <strong>Live AI backend</strong>
-              <p>Runs the real pipeline: Google Street View → YOLOv8 → risk scoring. Off = instant offline demo with dataset sample frames.</p>
+              <strong>Use the analysis server</strong>
+              <p>On: real Street View frames and detection (needs api_server.py running). Off: instant demo with sample frames, no server needed.</p>
             </div>
             <label className="switch-control">
               <input type="checkbox" checked={useLiveApi} onChange={(e) => setUseLiveApi(e.target.checked)} />
@@ -59,7 +59,7 @@ function SettingsForm({ onClose, apiConfig, setApiConfig, backendOnline, onTestC
           <div className="form-group">
             <label className="form-label" htmlFor="backend-url">
               <Server size={16} className="text-muted" />
-              Backend URL
+              Server URL
             </label>
             <div className="input-row-with-btn">
               <input
@@ -78,9 +78,9 @@ function SettingsForm({ onClose, apiConfig, setApiConfig, backendOnline, onTestC
             </div>
             <span className={`input-helper-text conn-status ${status === true ? 'conn-ok' : status === false ? 'conn-bad' : ''}`}>
               {status === 'testing' ? 'Checking…'
-                : status === true ? <><Wifi size={12} /> Connected to RoadGuard API</>
+                : status === true ? <><Wifi size={12} /> Connected</>
                 : status === false ? <><WifiOff size={12} /> Not reachable — run <code>python api_server.py</code></>
-                : 'FastAPI server from api_server.py. Empty = same origin / Vite proxy.'}
+                : 'Leave empty when the server runs on this machine.'}
             </span>
           </div>
 

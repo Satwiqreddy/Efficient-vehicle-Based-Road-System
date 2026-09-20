@@ -13,7 +13,7 @@ export default function HistoryModal({ isOpen, onClose, onSelectHistoryRoute, on
         <div className="modal-header-row">
           <div className="modal-title-wrap">
             <Clock size={20} className="text-primary" />
-            <h3 className="modal-title">Analysis History</h3>
+            <h3 className="modal-title">History</h3>
           </div>
           <div className="modal-actions-inline">
             {historyItems.length > 0 && (
@@ -31,7 +31,7 @@ export default function HistoryModal({ isOpen, onClose, onSelectHistoryRoute, on
         <div className="modal-body-scrollable">
           {historyItems.length === 0 ? (
             <div className="empty-state-notice">
-              <p>No route analyses yet. Run one from the planner and it will appear here.</p>
+              <p>Nothing yet. Routes you analyse will be listed here.</p>
             </div>
           ) : (
             <div className="history-list-cards">
@@ -45,7 +45,7 @@ export default function HistoryModal({ isOpen, onClose, onSelectHistoryRoute, on
                     <div className="history-card-header">
                       <span className="history-timestamp">{item.timestamp}{item.isDemo ? ' · Demo' : ''}</span>
                       <span className={`history-risk-pill ${score >= 70 ? 'pill-high' : score >= 45 ? 'pill-med' : 'pill-low'}`}>
-                        Risk Score: {score}/100
+                        Risk {score}
                       </span>
                     </div>
 
@@ -77,7 +77,7 @@ export default function HistoryModal({ isOpen, onClose, onSelectHistoryRoute, on
                         onClose();
                       }}
                     >
-                      View Analysis Results
+                      Open
                     </button>
                   </div>
                 );
