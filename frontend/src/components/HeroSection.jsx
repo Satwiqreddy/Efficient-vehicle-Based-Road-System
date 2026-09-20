@@ -48,18 +48,18 @@ export default function HeroSection({
   return (
     <section className="hero-section">
       <div className="hero-grid">
-        <div className="hero-left-content">
-          <h1 className="hero-title">Check the road before you drive it.</h1>
+        <div className="hero-left-content hero-intro">
+          <h1 className="hero-title">Check the road <mark className="hl">before</mark> you drive it.</h1>
           <p className="hero-subtitle">
             Enter two places. We fetch every driving route between them, look at each Street View
-            frame along the way for potholes and speed breakers, and rate the routes for your car's
-            ground clearance.
+            frame along the way for <strong>potholes and speed breakers</strong>, and rate the routes for
+            <strong> your car's ground clearance</strong>.
           </p>
 
           <ol className="how-list">
-            <li><span>1</span> Routes come from Google Directions, including the alternatives.</li>
-            <li><span>2</span> A YOLOv8 detector trained on Indian roads scans a Street View frame every 10 m.</li>
-            <li><span>3</span> Each hazard is scored against your vehicle's ground clearance; the safest route is recommended.</li>
+            <li><span>1</span><div>Routes come from <strong>Google Directions</strong>, including the alternatives.</div></li>
+            <li><span>2</span><div>A <strong>YOLOv8 detector</strong> trained on Indian roads scans a Street View frame <strong>every 10 m</strong>.</div></li>
+            <li><span>3</span><div>Each hazard is scored against your vehicle's ground clearance; the <strong>safest route is recommended</strong>.</div></li>
           </ol>
         </div>
 

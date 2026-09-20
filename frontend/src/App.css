@@ -3276,3 +3276,25 @@ input:checked + .slider:before {
 }
 [data-theme="dark"] .hero-section { background: none; border: none; box-shadow: none; }
 [data-theme="dark"] .hero-section::before, [data-theme="dark"] .hero-section::after { display: none; }
+
+/* highlighted intro block */
+.hero-intro {
+  background: var(--color-accent-soft);
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius-lg);
+  padding: 28px 28px 24px;
+}
+[data-theme="dark"] .hero-intro { background: rgba(22, 163, 74, 0.12); }
+.hero-intro .hero-title mark.hl {
+  background: none;
+  color: var(--color-accent);
+  padding: 0;
+}
+.hero-intro .hero-subtitle strong, .hero-intro .how-list strong { color: var(--text-main); font-weight: 650; }
+.hero-intro .how-list li span { background: var(--bg-card); border-color: var(--color-low-border); color: var(--color-accent-text); }
+.hero-intro .how-list { font-size: 0.92rem; }
+
+.footer-copy { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 4px; }
+.footer-mail, .about-contact a { color: var(--color-accent-text); font-weight: 600; }
+.footer-mail:hover, .about-contact a:hover { text-decoration: underline; }
+.about-contact { font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; }

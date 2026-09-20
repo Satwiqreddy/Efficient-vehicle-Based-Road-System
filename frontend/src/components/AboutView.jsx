@@ -12,6 +12,7 @@ export default function AboutView({ onBackToHome }) {
           Google Street View, and rates each route for the vehicle you drive.
         </p>
         <button type="button" className="btn-action-primary" onClick={onBackToHome}>Analyse a route</button>
+        <p className="about-contact">Questions or feedback: <a href="mailto:projectk89dsda@gmail.com">projectk89dsda@gmail.com</a></p>
       </div>
 
       <div className="about-content-grid">
