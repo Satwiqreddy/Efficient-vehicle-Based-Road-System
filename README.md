@@ -17,8 +17,6 @@ By analysing road surface conditions using street-level images and estimating ob
 
 ##  System Architecture
 
-![System Architecture](docs/architecture-ground.png)
-
 The system is divided into five stages:
 
 **1. User Input**
@@ -40,9 +38,8 @@ Road images go through a pipeline:
 - Each road segment is classified as Low, Medium, or High risk.
 
 **5. Routing Service & User Interface**
-- A modified routing algorithm finds the safest path using risk scores.
-- Alternative routes are also calculated.
-- The final map shows the recommended route, risk warnings, and safety status.
+- Every alternative route from Google Directions is scanned and scored; the lowest-risk one is recommended.
+- The React UI shows all routes on Google Maps with colour-coded hazard markers, annotated Street View frames, a per-vehicle risk gauge and a printable report.
 
 ---
 
@@ -68,31 +65,48 @@ Road images go through a pipeline:
 
 | Purpose | Tool Used |
 |---|---|
-| Route & map data | Google Maps Directions API |
-| Road imagery | Google Street View Static API |
-| Obstacle detection | YOLOv8 |
-| Depth estimation | MiDaS |
-| Routing algorithm | Modified A* (A-Star) |
-| Backend | Python, Flask |
-| Map visualisation | Folium |
+| Route & alternatives | Google Maps Directions API (`alternatives=true`) |
+| Road imagery | Google Street View Static API, sampled every 50 m |
+| Obstacle detection | YOLOv8 (custom pothole + speed-breaker weights in `hazard_detection/models/`) |
+| Risk scoring | `hazard_detection/src/risk_engine.py`, personalised by ground clearance |
+| Backend | Python, FastAPI (`api_server.py`) — async jobs with live progress |
+| Frontend | React + Vite (`frontend/`), Google Maps JavaScript API |
+
+---
+
+## 🚀 Run It
+
+```bash
+# 1. backend  (Python 3.10+, needs GOOGLE_MAPS_API_KEY in .env)
+pip install -r hazard_detection/requirements.txt fastapi uvicorn polyline python-dotenv
+python api_server.py                      # http://localhost:8000
+
+# 2. frontend (dev, with hot reload)
+cd frontend && npm install && npm run dev  # http://localhost:5173
+
+#    — or build once and let the backend serve it —
+cd frontend && npm run build && cd .. && python api_server.py   # http://localhost:8000
+```
+
+Enter a start, a destination and your vehicle, then **Analyze Route with AI**. A 2 km route takes ~1 min;
+a route set with 3 alternatives across a city takes several minutes. The Google key must have
+**Directions API**, **Street View Static API** and **Maps JavaScript API** enabled. See `frontend/README.md`
+for settings, demo mode and key handling.
 
 ---
 
 ## 📄 Documentation
 
-All project documents are in the `docs/` folder:
-
-- [`requirements.md`](docs/requirements.md) — Functional and non-functional requirements, user stories
-- [`DESIGN.md`](docs/DESIGN.md) — System design, module design, technology choices
-- [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Module interaction, data contracts, repo structure
+- [`requirements.md`](requirements.md) — Functional and non-functional requirements, user stories
+- [`frontend/README.md`](frontend/README.md) — UI, backend connection, Google Maps key
 
 ---
 
 ##  Known Limitations
 
 - Road images come from Google Street View, which may not always be up to date.
-- Depth estimation gives a **relative** measure, not exact millimetre values. Risk is calculated using a normalised depth index.
-- The system is **not real-time** — it analyses a route when you query it. Live road updates are planned as future work.
+- Severity is currently driven by detection confidence; the MiDaS depth-based severity in `hazard_detection/src/depth_severity.py` is not yet wired into the API.
+- The system is **not real-time** — it analyses a route when you query it, and re-downloads imagery on every query (a per-panorama cache is planned).
 
 ---
 

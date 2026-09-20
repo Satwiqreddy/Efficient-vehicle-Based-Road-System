@@ -41,7 +41,7 @@ def download_image_with_retry(max_retries=3, **kwargs):
                 return None
 
 
-def download_pano_chain_with_retries(pano_chain, output_dir="output/images"):
+def download_pano_chain_with_retries(pano_chain, output_dir="output/images", on_progress=None):
     """Downloads one image per waypoint. Keeps every image that downloads
     successfully -- does NOT filter by road visibility, so nothing gets
     skipped just because the heuristic isn't confident about the road."""
@@ -58,6 +58,8 @@ def download_pano_chain_with_retries(pano_chain, output_dir="output/images"):
     for pano in pano_chain:
         filename = f"step_{pano['step']:04d}_wp{pano['waypoint_index']:04d}.jpg"
         print(f"  Step {pano['step']}/{len(pano_chain)}: {filename}")
+        if on_progress:
+            on_progress(pano["step"], len(pano_chain))
 
         filepath = download_image_with_retry(
             pano_id=pano["pano_id"], heading=pano["heading"],
