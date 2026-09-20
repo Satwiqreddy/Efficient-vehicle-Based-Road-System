@@ -30,12 +30,24 @@ def main():
     with open(chain_path) as f:
         chain = json.load(f)
 
-    output_dir = Path("output/images_linked")
+    # Named by position along the route (linked_0000.jpg, linked_0001.jpg, ...)
+    # so the folder sorts in the order you actually drive it.
+    output_dir = Path("output/pano_cache")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Downloading images for {len(chain)} real connected panoramas...\n")
+    # A position-based name is NOT unique to a panorama -- linked_0042.jpg from a
+    # previous route is a different place. So a file on disk only counts as cached
+    # if the last index recorded it against this same pano_id; otherwise re-fetch.
+    index_path = Path("output/images_index.json")
+    cached_pano_ids = {}
+    if index_path.exists():
+        with open(index_path) as f:
+            cached_pano_ids = {Path(e["image"]).name: e["pano_id"] for e in json.load(f)}
+
+    print(f"Fetching images for {len(chain)} real connected panoramas...\n")
 
     image_index = []
+    downloaded = 0
     for i, node in enumerate(chain):
         # Heading toward the NEXT real panorama in the chain, not a guessed
         # coordinate -- this should be more accurate than before.
@@ -46,24 +58,27 @@ def main():
             heading = bearing(chain[i - 1]["lat"], chain[i - 1]["lng"], node["lat"], node["lng"])
 
         filename = f"linked_{i:04d}.jpg"
-        filepath = download_image(
-            pano_id=node["pano_id"], heading=heading,
-            output_dir=str(output_dir), filename=filename,
-        )
+        if (output_dir / filename).exists() and cached_pano_ids.get(filename) == node["pano_id"]:
+            filepath = str(output_dir / filename)
+            print(f"  {i+1}/{len(chain)}: cached {filename}")
+        else:
+            filepath = download_image(
+                pano_id=node["pano_id"], heading=heading,
+                output_dir=str(output_dir), filename=filename,
+            )
+            downloaded += 1
+            print(f"  {i+1}/{len(chain)}: {'Saved' if filepath else 'Failed to download'} {filename}")
 
         if filepath:
-            print(f"  {i+1}/{len(chain)}: Saved {filename}")
             image_index.append({
                 "image": filepath, "lat": node["lat"], "lng": node["lng"],
                 "pano_id": node["pano_id"],
             })
-        else:
-            print(f"  {i+1}/{len(chain)}: Failed to download")
 
     with open("output/images_index.json", "w") as f:
         json.dump(image_index, f, indent=2)
 
-    print(f"\nDownloaded {len(image_index)} real images.")
+    print(f"\n{len(image_index)} images ready ({downloaded} downloaded, {len(image_index) - downloaded} from cache).")
     print("Saved to: output/images_index.json (ready for analyze_route_images.py)")
 
 
